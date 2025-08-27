@@ -1,0 +1,19 @@
+{
+  "recommendations": [
+    "dbaeumer.vscode-eslint",
+    "esbenp.prettier-vscode",
+    "ms-vscode.vscode-typescript-next",
+    "ms-playwright.playwright",
+    "orta.vscode-jest",
+    "streetsidesoftware.code-spell-checker",
+    "eamodio.gitlens",
+    "christian-kohler.path-intellisense",
+    "aaron-bond.better-comments",
+    "wayou.vscode-todo-highlight",
+    "mikestead.dotenv",
+    "yzhang.markdown-all-in-one",
+    "davidanson.vscode-markdownlint",
+    "github.vscode-github-actions",
+    "redhat.vscode-yaml"
+  ]
+}

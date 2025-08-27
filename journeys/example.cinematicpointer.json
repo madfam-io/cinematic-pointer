@@ -1,0 +1,46 @@
+{
+  "meta": {
+    "name": "Example Journey",
+    "viewport": {
+      "w": 1440,
+      "h": 900
+    }
+  },
+  "start": {
+    "url": "https://example.com"
+  },
+  "steps": [
+    {
+      "comment": "Navigate to homepage",
+      "action": "waitFor",
+      "locator": {
+        "text": "Example Domain"
+      },
+      "timeoutMs": 5000
+    },
+    {
+      "comment": "Scroll to center of page",
+      "action": "scroll",
+      "to": "center",
+      "durationMs": 1200
+    },
+    {
+      "comment": "Highlight main content",
+      "action": "cameraMark",
+      "zoom": 1.2,
+      "target": {
+        "text": "Example Domain"
+      },
+      "durationMs": 900
+    },
+    {
+      "action": "pause",
+      "ms": 1000
+    }
+  ],
+  "output": {
+    "preset": "trailer",
+    "aspect": "16:9",
+    "captions": true
+  }
+}
