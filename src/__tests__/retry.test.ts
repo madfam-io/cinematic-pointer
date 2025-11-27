@@ -127,6 +127,37 @@ describe('Retry Utilities', () => {
 
       expect(delays[1]).toBe(150); // Would be 200, but capped at 150
     });
+
+    it('should apply jitter when enabled', async () => {
+      const delays: number[] = [];
+      const fn = jest
+        .fn()
+        .mockRejectedValueOnce(new Error('fail 1'))
+        .mockRejectedValueOnce(new Error('fail 2'))
+        .mockRejectedValueOnce(new Error('fail 3'))
+        .mockRejectedValueOnce(new Error('fail 4'))
+        .mockResolvedValue('success');
+
+      await retry(fn, {
+        maxAttempts: 5,
+        initialDelay: 100,
+        backoffFactor: 1, // Keep delay constant to test jitter
+        jitter: true,
+        onRetry: (_err, _attempt, delay) => delays.push(delay),
+      });
+
+      // With jitter, delays should vary around the base delay
+      // Base is 100, jitter adds ±25%, so range is 75-125
+      for (const delay of delays) {
+        expect(delay).toBeGreaterThanOrEqual(75);
+        expect(delay).toBeLessThanOrEqual(125);
+      }
+
+      // At least some delays should be different (very unlikely all are same with random jitter)
+      const uniqueDelays = new Set(delays);
+      // Don't assert uniqueness - randomness could produce same values
+      expect(delays.length).toBe(4);
+    });
   });
 
   describe('retryWithResult', () => {

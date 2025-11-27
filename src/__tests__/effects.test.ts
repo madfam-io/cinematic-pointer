@@ -176,6 +176,12 @@ describe('Effects Module', () => {
         const result = generateScaleFilter(1280, 720, false);
         expect(result).toBe('scale=1280:720');
       });
+
+      it('should default to maintaining aspect ratio', () => {
+        const result = generateScaleFilter(1920, 1080);
+        expect(result).toContain('force_original_aspect_ratio=decrease');
+        expect(result).toContain('pad=1920:1080');
+      });
     });
 
     describe('generateCropFilter', () => {

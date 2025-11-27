@@ -334,6 +334,155 @@ describe('Privacy Module', () => {
       const result = extractBlurRegionsFromEvents(events, config, 1920, 1080);
       expect(result).toHaveLength(0);
     });
+
+    it('should match selectors by "by" and "value"', () => {
+      const events = [
+        {
+          ts: 1000,
+          t: 'input.fill',
+          to: [500, 300],
+          selector: { by: 'css', value: 'input[type="password"]' },
+        },
+      ];
+      const config: BlurMapConfig = {
+        regions: [
+          {
+            id: 'password-css',
+            startTime: 0,
+            type: 'selector',
+            selector: { by: 'css', value: 'input[type="password"]' },
+            style: { type: 'blur', strength: 30 },
+          },
+        ],
+      };
+
+      const result = extractBlurRegionsFromEvents(events, config, 1920, 1080);
+      expect(result).toHaveLength(1);
+      expect(result[0].id).toBe('input-1000');
+    });
+
+    it('should not match when "by" matches but "value" differs', () => {
+      const events = [
+        {
+          ts: 1000,
+          t: 'input.fill',
+          to: [500, 300],
+          selector: { by: 'css', value: 'input[type="email"]' },
+        },
+      ];
+      const config: BlurMapConfig = {
+        regions: [
+          {
+            id: 'password-css',
+            startTime: 0,
+            type: 'selector',
+            selector: { by: 'css', value: 'input[type="password"]' },
+            style: { type: 'blur' },
+          },
+        ],
+      };
+
+      const result = extractBlurRegionsFromEvents(events, config, 1920, 1080);
+      expect(result).toHaveLength(0);
+    });
+
+    it('should match selectors by "role" and "name"', () => {
+      const events = [
+        {
+          ts: 1000,
+          t: 'input.fill',
+          to: [500, 300],
+          selector: { role: 'textbox', name: 'Password' },
+        },
+      ];
+      const config: BlurMapConfig = {
+        regions: [
+          {
+            id: 'password-role',
+            startTime: 0,
+            type: 'selector',
+            selector: { role: 'textbox', name: 'Password' },
+            style: { type: 'blur', strength: 30 },
+          },
+        ],
+      };
+
+      const result = extractBlurRegionsFromEvents(events, config, 1920, 1080);
+      expect(result).toHaveLength(1);
+    });
+
+    it('should not match when "role" matches but "name" differs', () => {
+      const events = [
+        {
+          ts: 1000,
+          t: 'input.fill',
+          to: [500, 300],
+          selector: { role: 'textbox', name: 'Username' },
+        },
+      ];
+      const config: BlurMapConfig = {
+        regions: [
+          {
+            id: 'password-role',
+            startTime: 0,
+            type: 'selector',
+            selector: { role: 'textbox', name: 'Password' },
+            style: { type: 'blur' },
+          },
+        ],
+      };
+
+      const result = extractBlurRegionsFromEvents(events, config, 1920, 1080);
+      expect(result).toHaveLength(0);
+    });
+
+    it('should not match when event has no selector', () => {
+      const events = [
+        {
+          ts: 1000,
+          t: 'input.fill',
+          to: [500, 300],
+        },
+      ];
+      const config: BlurMapConfig = {
+        regions: [
+          {
+            id: 'password-field',
+            startTime: 0,
+            type: 'selector',
+            selector: { placeholder: 'Password' },
+            style: { type: 'blur' },
+          },
+        ],
+      };
+
+      const result = extractBlurRegionsFromEvents(events, config, 1920, 1080);
+      expect(result).toHaveLength(0);
+    });
+
+    it('should not match when region has no selector', () => {
+      const events = [
+        {
+          ts: 1000,
+          t: 'input.fill',
+          to: [500, 300],
+          selector: { placeholder: 'Password' },
+        },
+      ];
+      const config: BlurMapConfig = {
+        regions: [
+          {
+            id: 'region-no-selector',
+            startTime: 0,
+            type: 'selector',
+            style: { type: 'blur' },
+          },
+        ],
+      };
+
+      const result = extractBlurRegionsFromEvents(events, config, 1920, 1080);
+      expect(result).toHaveLength(0);
+    });
   });
 
   describe('generateAutoDetectSelectors', () => {

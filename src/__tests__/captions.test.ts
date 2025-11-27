@@ -88,6 +88,26 @@ describe('Captions Module', () => {
         expect(centerResult).toContain(',5,'); // center
         expect(bottomResult).toContain(',2,'); // bottom
       });
+
+      it('should apply italic style', () => {
+        const style: CaptionStyle = { italic: true };
+        const result = generateASSSubtitles(sampleCaptions, 1920, 1080, style);
+        expect(result).toContain(',0,1,'); // bold=0, italic=1
+      });
+
+      it('should use default position and alignment when not specified', () => {
+        // Empty style object - should use defaults
+        const result = generateASSSubtitles(sampleCaptions, 1920, 1080, {});
+        // Default is bottom center (alignment 2)
+        expect(result).toContain(',2,'); // alignment 2 = bottom center
+      });
+
+      it('should use default colors when not specified', () => {
+        const result = generateASSSubtitles(sampleCaptions, 1920, 1080, {});
+        // Should have white primary color and black outline
+        expect(result).toContain('&H00FFFFFF'); // white
+        expect(result).toContain('&H00000000'); // black
+      });
     });
 
     describe('generateSRTSubtitles', () => {
@@ -261,6 +281,18 @@ describe('Captions Module', () => {
         const result = generateDrawTextFilter('Test', 0, 5, { shadow: 3 });
         expect(result).toContain(':shadowx=3');
         expect(result).toContain(':shadowy=3');
+      });
+
+      it('should not include outline when explicitly set to 0', () => {
+        const result = generateDrawTextFilter('Test', 0, 5, { outline: 0 });
+        expect(result).not.toContain(':borderw=');
+        expect(result).not.toContain(':bordercolor=');
+      });
+
+      it('should not include shadow when explicitly set to 0', () => {
+        const result = generateDrawTextFilter('Test', 0, 5, { shadow: 0 });
+        expect(result).not.toContain(':shadowx=');
+        expect(result).not.toContain(':shadowy=');
       });
 
       it('should include fontSize and fontColor', () => {
