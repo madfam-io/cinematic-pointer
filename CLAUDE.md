@@ -1,36 +1,94 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to Claude Code when working with code in this repository.
 
 ## Project Overview
 
-Cinematic Pointer is an automated system that replays preplanned user journeys on the web and produces polished, cinematic videos where the cursor is the protagonist. It's designed for product demos, instructional videos, and storytelling at scale.
+Cinematic Pointer is an automated system that replays preplanned user journeys on the web and produces polished, cinematic videos where the cursor is the protagonist. Designed for product demos, instructional videos, and storytelling at scale.
 
 ## Architecture
 
 ### Core Components
 
-1. **Journey DSL** - Declarative JSON format for authoring user flows
-2. **Universal Event Schema (UES)** - OS-agnostic event log for overlays, camera moves, and captions
-3. **Web Runner** - Playwright-based execution engine with robust selectors
-4. **Recording System** - Multiple recorder implementations (PlaywrightVideo, FFmpegScreen, OBSRemote)
-5. **Post-Production Pipeline** - FFmpeg-powered auto-editing with zoom/pan, speed ramps, captions, and music
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                        CLI (src/cli.ts)                          │
+├─────────────────────────────────────────────────────────────────┤
+│  run          │   cut           │   reframe      │   doctor     │
+├───────────────┼─────────────────┼────────────────┼──────────────┤
+│               │                 │                │              │
+│  ┌─────────┐  │  ┌───────────┐  │  ┌──────────┐  │  ┌────────┐  │
+│  │Executor │  │  │ Pipeline  │  │  │ Reframe  │  │  │ Health │  │
+│  └────┬────┘  │  └─────┬─────┘  │  └────┬─────┘  │  └────────┘  │
+│       │       │        │        │       │        │              │
+│  ┌────┴────┐  │  ┌─────┴─────┐  │  ┌────┴─────┐  │              │
+│  │ Driver  │  │  │  FFmpeg   │  │  │  FFmpeg  │  │              │
+│  │Playwright│  │  │  Effects  │  │  │  Smart   │  │              │
+│  └────┬────┘  │  │  Captions │  │  │  Crop    │  │              │
+│       │       │  │  Export   │  │  └──────────┘  │              │
+│  ┌────┴────┐  │  └───────────┘  │                │              │
+│  │Recorder │  │                 │                │              │
+│  │ Overlay │  │                 │                │              │
+│  └─────────┘  │                 │                │              │
+└───────────────┴─────────────────┴────────────────┴──────────────┘
+```
+
+### Module Overview
+
+| Module          | Location         | Purpose                            |
+| --------------- | ---------------- | ---------------------------------- |
+| CLI             | `src/cli.ts`     | Command-line interface entry point |
+| Executor        | `src/executor/`  | Journey parsing and step execution |
+| Driver          | `src/drivers/`   | Browser automation (Playwright)    |
+| Recorder        | `src/recorders/` | Video capture implementations      |
+| Overlay         | `src/overlay/`   | Cursor effects injection           |
+| Post-Production | `src/postprod/`  | FFmpeg video processing            |
+| Themes          | `src/themes/`    | Brand theming system               |
+| Utils           | `src/utils/`     | Shared utilities                   |
+| Types           | `src/types/`     | TypeScript definitions             |
 
 ### Key Interfaces
 
-- `Driver` - Abstraction for web/desktop automation
-- `Recorder` - Recording interface for capturing video
-- Both emit UES events that drive the post-production pipeline
+```typescript
+// Driver - Browser automation abstraction
+interface Driver {
+  init(meta: Meta): Promise<void>;
+  goto(url: string): Promise<void>;
+  click(sel: Selector): Promise<void>;
+  fill(sel: Selector, text: string, mask?: boolean): Promise<void>;
+  hover(sel: Selector): Promise<void>;
+  scroll(to: ScrollTarget): Promise<void>;
+  press(key: string): Promise<void>;
+  waitFor(condition: Condition): Promise<void>;
+  teardown(): Promise<void>;
+}
+
+// Recorder - Video capture abstraction
+interface Recorder {
+  start(meta: Meta): Promise<void>;
+  mark(event: UesEvent): void;
+  stop(): Promise<RecordingArtifacts>;
+}
+
+// UesEvent - Universal Event Schema
+interface UesEvent {
+  ts: number; // Timestamp in ms
+  t: string; // Event type
+  to?: number[]; // Target coordinates
+  from?: number[]; // Source coordinates
+  // ... additional properties per event type
+}
+```
 
 ## Development Setup
 
-Quick setup:
+### Quick Setup
 
 ```bash
 ./scripts/setup.sh
 ```
 
-Or manually:
+### Manual Setup
 
 ```bash
 npm install
@@ -39,21 +97,21 @@ npm run prepare  # Setup Husky hooks
 npm run build
 ```
 
-Ensure system dependencies:
+### System Dependencies
 
-- Node.js ≥ 20 (use `.nvmrc`)
-- ffmpeg ≥ 6.0
+- Node.js ≥ 20 (see `.nvmrc`)
+- FFmpeg ≥ 6.0
 - Optional: OBS with WebSocket plugin
 
 ## Development Scripts
 
 ```bash
-npm run dev          # Start development mode with hot reload
+npm run dev          # Development mode with hot reload
 npm run build        # Build TypeScript to JavaScript
-npm run test         # Run unit tests
+npm run test         # Run unit tests (Jest)
 npm run test:watch   # Run tests in watch mode
 npm run test:coverage # Run tests with coverage
-npm run test:e2e     # Run Playwright E2E tests
+npm run test:e2e     # Run E2E tests (Playwright)
 npm run lint         # Check code with ESLint
 npm run lint:fix     # Auto-fix ESLint issues
 npm run format       # Format code with Prettier
@@ -63,20 +121,43 @@ npm run typecheck    # Run TypeScript type checking
 
 ## CLI Commands
 
-The main entry points:
+### `run` - Execute a Journey
 
 ```bash
-# Run a journey
-cinematic-pointer run journeys/signup.json \
-  --browser=chromium --recorder=playwright --out=artifacts
+cinematic-pointer run <journey.json> \
+  --browser=chromium \
+  --recorder=playwright \
+  --out=artifacts \
+  --brand=madfam_trailer \
+  --headed
+```
 
-# Auto-edit recorded footage
-cinematic-pointer cut artifacts/raw/video.webm artifacts/events.ndjson \
-  --template=trailer --music=assets/uplift_a.mp3 --captions=auto \
-  --out=exports/signup_trailer_1080p.mp4
+### `cut` - Post-Production
 
-# Reframe for different aspect ratios
-cinematic-pointer reframe exports/signup_trailer_1080p.mp4 --aspect=9:16 --smart-crop
+```bash
+cinematic-pointer cut <video.webm> <events.ndjson> \
+  --template=trailer \
+  --music=assets/uplift_a.mp3 \
+  --captions=auto \
+  --aspect=16:9 \
+  --quality=high \
+  --out=exports/output.mp4
+```
+
+### `reframe` - Aspect Conversion
+
+```bash
+cinematic-pointer reframe <video.mp4> \
+  --aspect=9:16 \
+  --smart-crop \
+  --events=events.ndjson \
+  --quality=standard
+```
+
+### `doctor` - System Health Check
+
+```bash
+cinematic-pointer doctor --json
 ```
 
 ## Journey DSL Format
@@ -85,37 +166,251 @@ Journeys are defined in `.cinematicpointer.json` files:
 
 ```json
 {
-  "meta": { "name": "string", "viewport": { "w": number, "h": number } },
-  "start": { "url": "string" },
+  "meta": {
+    "name": "string",
+    "description": "string",
+    "viewport": { "w": 1440, "h": 900 }
+  },
+  "start": { "url": "https://example.com" },
   "steps": [
-    { "action": "click|fill|scroll|hover|press|waitFor|cameraMark|pause", ... }
+    {
+      "action": "click|fill|scroll|hover|press|waitFor|cameraMark|pause",
+      "locator": { "role": "button", "name": "Submit" },
+      "cinema": { "beat": "impact", "ripple": true, "zoom": 1.2 }
+    }
   ],
-  "output": { "preset": "trailer|howto|teaser", "aspect": "16:9|1:1|9:16" }
+  "output": {
+    "preset": "trailer|howto|teaser",
+    "aspect": "16:9|1:1|9:16",
+    "music": "track_name",
+    "captions": true
+  }
 }
 ```
 
+### Step Actions
+
+| Action       | Required Props         | Optional Props                 |
+| ------------ | ---------------------- | ------------------------------ |
+| `click`      | `locator`              | `button`, `cinema`             |
+| `fill`       | `locator`, `text`      | `mask`, `cinema`               |
+| `hover`      | `locator`              | `cinema`                       |
+| `scroll`     | `to`                   | `durationMs`                   |
+| `press`      | `key`                  | -                              |
+| `waitFor`    | `locator` or condition | `timeoutMs`                    |
+| `cameraMark` | -                      | `zoom`, `target`, `durationMs` |
+| `pause`      | `durationMs`           | -                              |
+
 ## Locator Strategy Priority
 
-1. Accessibility: role/name, label/placeholder, text
-2. Test IDs: `data-testid`
-3. CSS/XPath fallback
+1. **Accessibility**: `role`, `name`, `label`, `placeholder`
+2. **Test IDs**: `data-testid`
+3. **CSS/XPath fallback**: `by: "css"`, `by: "xpath"`
+
+```typescript
+// Resolution order in src/utils/selector.ts
+const strategies = [
+  resolveByRole,
+  resolveByLabel,
+  resolveByPlaceholder,
+  resolveByText,
+  resolveByTestId,
+  resolveByCss,
+  resolveByXPath,
+];
+```
+
+## Post-Production Pipeline
+
+### FFmpeg Module (`src/postprod/ffmpeg.ts`)
+
+Fluent API for building FFmpeg commands:
+
+```typescript
+await ffmpeg()
+  .overwrite()
+  .input('input.webm')
+  .filter('zoompan=z=1.2:d=100:s=1920x1080')
+  .videoCodec('libx264')
+  .crf(18)
+  .preset('slow')
+  .audioCodec('aac')
+  .audioBitrate('192k')
+  .output('output.mp4')
+  .run({ onProgress: (seconds) => console.log(seconds) });
+```
+
+### Effects Module (`src/postprod/effects.ts`)
+
+- `generateZoomPanFilter()` - Ken Burns effect
+- `generateSpeedFilter()` - Speed ramps with setpts
+- `generateFadeFilter()` - Fade in/out
+- `generateMotionBlurFilter()` - Motion blur
+- `generateAudioDuckingFilter()` - Audio ducking
+- `generateColorGradeFilter()` - Color grading presets
+
+### Caption Module (`src/postprod/captions.ts`)
+
+- `generateASSSubtitles()` - ASS format with styling
+- `generateSRTSubtitles()` - SRT format
+- `generateVTTSubtitles()` - WebVTT format
+- `exportCaptions()` - Export to any format
+
+### Export Module (`src/postprod/export.ts`)
+
+Multi-format export with platform presets:
+
+```typescript
+await exportVideo({
+  inputPath: 'video.mp4',
+  outputDir: 'exports/',
+  formats: ['mp4', 'webm'],
+  aspects: ['16:9', '9:16', '1:1'],
+  quality: 'high',
+});
+
+await exportForPlatform('video.mp4', 'exports/', 'tiktok');
+```
+
+### Privacy Module (`src/postprod/privacy.ts`)
+
+Blur maps for sensitive content:
+
+```typescript
+const config: BlurMapConfig = {
+  regions: [
+    {
+      id: 'password-field',
+      type: 'selector',
+      selector: { placeholder: 'Password' },
+      style: { type: 'blur', strength: 30 },
+    },
+  ],
+  autoDetect: {
+    passwords: true,
+    creditCards: true,
+  },
+};
+```
+
+## Brand Theming (`src/themes/`)
+
+### Theme Presets
+
+- `default` - MADFAM brand colors
+- `madfam_trailer` - High energy, cinematic
+- `madfam_howto` - Clear, instructional
+- `madfam_teaser` - Subtle, elegant
+- `minimal` - Clean, no effects
+- `dark` - Dark mode optimized
+- `light` - Light mode optimized
+
+### Theme Manager
+
+```typescript
+import { themeManager } from './themes';
+
+// Use preset
+themeManager.setTheme('madfam_trailer');
+
+// Load custom theme
+await themeManager.loadFromFile('./my-theme.json');
+
+// Apply overrides
+themeManager.applyOverrides({ cursor: { size: 32 } });
+
+// Generate CSS
+const css = themeManager.generateOverlayStyles();
+```
 
 ## Testing Approach
 
-- Unit tests for DSL parsing and selector resolution
-- Integration tests for complete journeys
-- Visual regression tests for overlays
-- Chaos testing with network throttle and dynamic content
+### Unit Tests (`src/__tests__/`)
+
+- DSL parsing and validation
+- Selector resolution
+- UES event emission
+- Type definitions
+
+### E2E Tests (`tests/e2e/`)
+
+- Journey execution against real sites
+- Overlay injection and effects
+- CLI command execution
+- Recording artifacts
+
+### Running Tests
+
+```bash
+npm test                          # Unit tests
+npm run test:coverage             # With coverage
+npm run test:e2e                  # E2E tests
+npm run test:e2e -- --project=chromium  # Single browser
+```
+
+## Error Handling
+
+Custom error classes in `src/utils/errors.ts`:
+
+```typescript
+class CinematicPointerError extends Error
+class ValidationError extends CinematicPointerError
+class FileNotFoundError extends CinematicPointerError
+class DependencyError extends CinematicPointerError
+class ExecutionError extends CinematicPointerError
+class TimeoutError extends CinematicPointerError
+```
+
+## Retry Logic
+
+Exponential backoff with jitter in `src/utils/retry.ts`:
+
+```typescript
+import { withRetry, retryStrategies } from './utils/retry';
+
+const result = await withRetry(
+  async () => await riskyOperation(),
+  retryStrategies.network,
+  (attempt, error) => console.log(`Attempt ${attempt} failed`),
+);
+```
+
+## Logging
+
+Structured logging in `src/utils/logger.ts`:
+
+```typescript
+import { logger } from './utils/logger';
+
+logger.info('Starting journey', { name: journey.meta.name });
+logger.error('Step failed', error, { step: stepIndex });
+```
+
+Log levels: `debug`, `info`, `warn`, `error`
 
 ## Security & Privacy
 
 - Secrets via environment variables only
-- Masked fields render as bullets
-- Blur maps by selector
-- Support for synthetic data in staging
+- `mask: true` renders field values as bullets
+- Blur maps redact sensitive regions
+- Auto-detection for passwords, credit cards, emails
 
 ## Performance Targets
 
-- 60-90s trailer renders in < 5 min on MacBook Pro class hardware
+- 60-90s trailer renders in < 5 min (MacBook Pro class)
 - 95% pass rate across supported journeys
 - Automatic retry of flaky steps
+
+## Code Style
+
+- TypeScript strict mode
+- ESLint with Prettier
+- Import order: builtin → external → internal → relative
+- Unused variables prefixed with `_`
+
+## CI/CD
+
+GitHub Actions workflows:
+
+- `.github/workflows/ci.yml` - Lint, test, build, E2E
+- `.github/workflows/release.yml` - Tagged releases, npm publish
