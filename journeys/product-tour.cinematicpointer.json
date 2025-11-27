@@ -1,0 +1,79 @@
+{
+  "meta": {
+    "name": "Product Tour",
+    "description": "A guided tour showcasing key product features",
+    "viewport": {
+      "w": 1920,
+      "h": 1080
+    }
+  },
+  "start": {
+    "url": "https://example.com"
+  },
+  "steps": [
+    {
+      "comment": "Welcome to the product",
+      "action": "waitFor",
+      "locator": {
+        "text": "Example Domain"
+      },
+      "timeoutMs": 5000
+    },
+    {
+      "comment": "Introducing the homepage",
+      "action": "cameraMark",
+      "cinema": {
+        "zoom": 1.0
+      },
+      "target": {
+        "text": "Example Domain"
+      },
+      "durationMs": 2000
+    },
+    {
+      "comment": "Let's explore the interface",
+      "action": "scroll",
+      "to": "top",
+      "durationMs": 800
+    },
+    {
+      "comment": "Main navigation area",
+      "action": "cameraMark",
+      "cinema": {
+        "zoom": 1.3
+      },
+      "target": {
+        "text": "Example Domain"
+      },
+      "durationMs": 1500
+    },
+    {
+      "comment": "Highlighting key features",
+      "action": "hover",
+      "locator": {
+        "text": "More information..."
+      }
+    },
+    {
+      "comment": "Click to see details",
+      "action": "click",
+      "locator": {
+        "text": "More information..."
+      },
+      "cinema": {
+        "beat": "impact",
+        "ripple": true
+      }
+    },
+    {
+      "comment": "Thank you for watching",
+      "action": "pause",
+      "durationMs": 2000
+    }
+  ],
+  "output": {
+    "preset": "howto",
+    "aspect": "16:9",
+    "captions": true
+  }
+}

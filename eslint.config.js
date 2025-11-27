@@ -87,9 +87,14 @@ export default [
         sourceType: 'module',
       },
       globals: {
+        // Node.js globals
         console: true,
         process: true,
         setTimeout: true,
+        __dirname: true,
+        __filename: true,
+        Buffer: true,
+        // Jest globals
         describe: true,
         it: true,
         expect: true,
@@ -101,6 +106,13 @@ export default [
         // Browser globals for e2e tests running in page context
         window: true,
         document: true,
+        localStorage: true,
+        sessionStorage: true,
+        getComputedStyle: true,
+        Element: true,
+        HTMLElement: true,
+        Event: true,
+        MouseEvent: true,
       },
     },
     plugins: {
@@ -111,6 +123,7 @@ export default [
       'prettier/prettier': 'error',
       '@typescript-eslint/no-explicit-any': 'off',
       'no-console': 'off',
+      'no-unused-vars': ['warn', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
     },
   },
   {

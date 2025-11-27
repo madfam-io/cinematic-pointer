@@ -1,0 +1,63 @@
+{
+  "meta": {
+    "name": "Social Media Teaser",
+    "description": "Quick teaser optimized for TikTok/Reels (9:16)",
+    "viewport": {
+      "w": 1080,
+      "h": 1920
+    }
+  },
+  "start": {
+    "url": "https://example.com"
+  },
+  "steps": [
+    {
+      "comment": "Hook - Grab attention",
+      "action": "waitFor",
+      "locator": {
+        "text": "Example Domain"
+      },
+      "timeoutMs": 3000
+    },
+    {
+      "comment": "Quick zoom",
+      "action": "cameraMark",
+      "cinema": {
+        "zoom": 1.4,
+        "beat": "impact"
+      },
+      "target": {
+        "text": "Example Domain"
+      },
+      "durationMs": 500
+    },
+    {
+      "comment": "Fast action",
+      "action": "hover",
+      "locator": {
+        "text": "More information..."
+      }
+    },
+    {
+      "comment": "Call to action",
+      "action": "click",
+      "locator": {
+        "text": "More information..."
+      },
+      "cinema": {
+        "beat": "impact",
+        "ripple": true
+      }
+    },
+    {
+      "comment": "End card",
+      "action": "pause",
+      "durationMs": 1000
+    }
+  ],
+  "output": {
+    "preset": "teaser",
+    "aspect": "9:16",
+    "captions": true
+  }
+}

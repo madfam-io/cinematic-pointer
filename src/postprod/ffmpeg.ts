@@ -207,6 +207,17 @@ export class FFmpegCommand {
   }
 
   /**
+   * Add arbitrary argument.
+   */
+  arg(key: string, value?: string): this {
+    this.outputOptions.push(key);
+    if (value !== undefined) {
+      this.outputOptions.push(value);
+    }
+    return this;
+  }
+
+  /**
    * Seek to position.
    */
   seek(seconds: number): this {
@@ -317,11 +328,19 @@ export function ffmpeg(): FFmpegCommand {
 }
 
 /**
+ * Probe result type.
+ */
+export interface ProbeResult {
+  duration: number;
+  width: number;
+  height: number;
+  fps: number;
+}
+
+/**
  * Probe a media file for metadata.
  */
-export async function probe(
-  filePath: string,
-): Promise<{ duration: number; width?: number; height?: number; fps?: number }> {
+export async function probe(filePath: string): Promise<ProbeResult> {
   return new Promise((resolve, reject) => {
     const args = [
       '-v',
@@ -351,12 +370,23 @@ export async function probe(
         const data = JSON.parse(output);
         const videoStream = data.streams?.find((s: any) => s.codec_type === 'video');
         const duration = parseFloat(data.format?.duration || '0');
+        const width = videoStream?.width || 1920;
+        const height = videoStream?.height || 1080;
+
+        // Parse FPS safely
+        let fps: number | undefined;
+        if (videoStream?.r_frame_rate) {
+          const [num, den] = videoStream.r_frame_rate.split('/');
+          if (num && den) {
+            fps = parseInt(num, 10) / parseInt(den, 10);
+          }
+        }
 
         resolve({
           duration,
-          width: videoStream?.width,
-          height: videoStream?.height,
-          fps: videoStream?.r_frame_rate ? eval(videoStream.r_frame_rate) : undefined,
+          width,
+          height,
+          fps: fps || 30,
         });
       } catch (e) {
         reject(new Error(`Failed to parse ffprobe output: ${e}`));

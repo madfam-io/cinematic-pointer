@@ -353,3 +353,182 @@ export function generateCaptionsFromSteps(
 
   return captions;
 }
+
+/**
+ * Generate WebVTT subtitle file.
+ */
+export function generateVTTSubtitles(captions: Caption[]): string {
+  const header = 'WEBVTT\n\n';
+
+  const cues = captions
+    .map((caption, index) => {
+      const start = formatVTTTime(caption.start);
+      const end = formatVTTTime(caption.end);
+      return `${index + 1}\n${start} --> ${end}\n${caption.text}\n`;
+    })
+    .join('\n');
+
+  return header + cues;
+}
+
+/**
+ * Format time as WebVTT timestamp (HH:MM:SS.mmm).
+ */
+function formatVTTTime(seconds: number): string {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = Math.floor(seconds % 60);
+  const ms = Math.floor((seconds % 1) * 1000);
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}.${String(ms).padStart(3, '0')}`;
+}
+
+/**
+ * Write SRT subtitles to file.
+ */
+export async function writeSRTToFile(captions: Caption[], outputPath: string): Promise<string> {
+  const srtContent = generateSRTSubtitles(captions);
+  const srtPath = outputPath.endsWith('.srt') ? outputPath : `${outputPath}.srt`;
+  await writeFile(srtPath, srtContent, 'utf-8');
+  return srtPath;
+}
+
+/**
+ * Write VTT subtitles to file.
+ */
+export async function writeVTTToFile(captions: Caption[], outputPath: string): Promise<string> {
+  const vttContent = generateVTTSubtitles(captions);
+  const vttPath = outputPath.endsWith('.vtt') ? outputPath : `${outputPath}.vtt`;
+  await writeFile(vttPath, vttContent, 'utf-8');
+  return vttPath;
+}
+
+/**
+ * Export captions to all subtitle formats.
+ */
+export async function exportAllCaptionFormats(
+  captions: Caption[],
+  basePath: string,
+  videoWidth: number,
+  videoHeight: number,
+  style?: CaptionStyle,
+): Promise<{ srt: string; vtt: string; ass: string }> {
+  const [srt, vtt, ass] = await Promise.all([
+    writeSRTToFile(captions, `${basePath}.srt`),
+    writeVTTToFile(captions, `${basePath}.vtt`),
+    writeCaptionsToFile(captions, `${basePath}.ass`, videoWidth, videoHeight, style),
+  ]);
+
+  return { srt, vtt, ass };
+}
+
+/**
+ * Caption format type.
+ */
+export type CaptionFormat = 'srt' | 'vtt' | 'ass';
+
+/**
+ * Export captions to specified format.
+ */
+export async function exportCaptions(
+  captions: Caption[],
+  outputPath: string,
+  format: CaptionFormat,
+  options?: {
+    videoWidth?: number;
+    videoHeight?: number;
+    style?: CaptionStyle;
+  },
+): Promise<string> {
+  switch (format) {
+    case 'srt':
+      return writeSRTToFile(captions, outputPath);
+
+    case 'vtt':
+      return writeVTTToFile(captions, outputPath);
+
+    case 'ass':
+      return writeCaptionsToFile(
+        captions,
+        outputPath,
+        options?.videoWidth ?? 1920,
+        options?.videoHeight ?? 1080,
+        options?.style,
+      );
+
+    default:
+      throw new Error(`Unknown caption format: ${format}`);
+  }
+}
+
+/**
+ * Merge overlapping captions.
+ */
+export function mergeCaptions(captions: Caption[], gapThreshold: number = 0.5): Caption[] {
+  if (captions.length === 0) return [];
+
+  const sorted = [...captions].sort((a, b) => a.start - b.start);
+  const merged: Caption[] = [{ ...sorted[0] }];
+
+  for (let i = 1; i < sorted.length; i++) {
+    const current = sorted[i];
+    const last = merged[merged.length - 1];
+
+    // If this caption starts before the last one ends (with threshold), merge
+    if (current.start <= last.end + gapThreshold && current.text === last.text) {
+      last.end = Math.max(last.end, current.end);
+    } else {
+      merged.push({ ...current });
+    }
+  }
+
+  return merged;
+}
+
+/**
+ * Split long captions into shorter ones.
+ */
+export function splitLongCaptions(
+  captions: Caption[],
+  maxChars: number = 80,
+  maxDuration: number = 8,
+): Caption[] {
+  const result: Caption[] = [];
+
+  for (const caption of captions) {
+    const duration = caption.end - caption.start;
+
+    // Check if needs splitting
+    if (caption.text.length <= maxChars && duration <= maxDuration) {
+      result.push(caption);
+      continue;
+    }
+
+    // Split by sentence or length
+    const sentences = caption.text.split(/(?<=[.!?])\s+/);
+    const chunks: string[] = [];
+    let currentChunk = '';
+
+    for (const sentence of sentences) {
+      if (currentChunk.length + sentence.length <= maxChars) {
+        currentChunk += (currentChunk ? ' ' : '') + sentence;
+      } else {
+        if (currentChunk) chunks.push(currentChunk);
+        currentChunk = sentence;
+      }
+    }
+    if (currentChunk) chunks.push(currentChunk);
+
+    // Distribute time across chunks
+    const chunkDuration = duration / chunks.length;
+    for (let i = 0; i < chunks.length; i++) {
+      result.push({
+        start: caption.start + i * chunkDuration,
+        end: caption.start + (i + 1) * chunkDuration,
+        text: chunks[i],
+        style: caption.style,
+      });
+    }
+  }
+
+  return result;
+}

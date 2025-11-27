@@ -10,3 +10,5 @@ export * from './captions';
 export * from './templates';
 export * from './pipeline';
 export * from './reframe';
+export * from './export';
+export * from './privacy';

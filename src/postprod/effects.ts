@@ -319,3 +319,222 @@ export function generateColorGradeFilter(preset: 'warm' | 'cool' | 'dramatic' | 
       return '';
   }
 }
+
+/**
+ * Motion blur segment definition.
+ */
+export interface MotionBlurSegment {
+  start: number; // seconds
+  end: number; // seconds
+  strength: number; // 0-1, where 1 is maximum blur
+}
+
+/**
+ * Generate motion blur filter using tblend.
+ * Creates a trailing effect by blending consecutive frames.
+ */
+export function generateMotionBlurFilter(
+  strength: number = 0.5,
+  _mode: 'all' | 'fast_cursor' = 'all',
+): string {
+  // Clamp strength between 0 and 1
+  const s = Math.max(0, Math.min(1, strength));
+
+  // Calculate blend factor (0.5 = 50% current, 50% previous)
+  const blendFactor = s * 0.5;
+
+  // tblend blends the current frame with the previous frame
+  // Using average mode with adjusted weights for motion blur effect
+  return `tblend=all_mode=average:all_opacity=${blendFactor}`;
+}
+
+/**
+ * Generate adaptive motion blur based on cursor velocity.
+ * Uses minterpolate for smoother motion blur effect.
+ */
+export function generateAdaptiveMotionBlurFilter(fps: number = 30): string {
+  // minterpolate can create motion blur by generating intermediate frames
+  // mi_mode=blend creates a blur effect
+  return `minterpolate=fps=${fps * 2}:mi_mode=blend,fps=${fps}`;
+}
+
+/**
+ * Generate segment-based motion blur.
+ * Applies blur only during specified time segments.
+ */
+export function generateSegmentedMotionBlurFilter(
+  segments: MotionBlurSegment[],
+  _fps: number,
+): string {
+  if (segments.length === 0) {
+    return '';
+  }
+
+  // Build enable expression for when blur should be active
+  const enableExprs = segments.map((seg) => `between(t,${seg.start},${seg.end})`);
+  const enableExpr = enableExprs.join('+');
+
+  // Use average strength across segments for simplicity
+  const avgStrength = segments.reduce((sum, seg) => sum + seg.strength, 0) / segments.length;
+  const blendFactor = avgStrength * 0.5;
+
+  return `tblend=all_mode=average:all_opacity=${blendFactor}:enable='${enableExpr}'`;
+}
+
+/**
+ * Audio ducking configuration.
+ */
+export interface DuckingConfig {
+  /** Times when ducking should occur (in seconds) */
+  duckPoints: Array<{
+    time: number;
+    duration: number;
+    level: number; // 0-1, target volume level during duck
+  }>;
+  /** Attack time in ms */
+  attack?: number;
+  /** Release time in ms */
+  release?: number;
+}
+
+/**
+ * Generate audio ducking filter.
+ * Lowers music volume when other audio (like voiceover) is playing.
+ */
+export function generateAudioDuckingFilter(config: DuckingConfig): string {
+  const { duckPoints, attack = 50, release = 200 } = config;
+
+  if (duckPoints.length === 0) {
+    return '';
+  }
+
+  // Build volume expression with smooth transitions
+  const expressions: string[] = [];
+
+  for (const point of duckPoints) {
+    const startTime = point.time;
+    const endTime = point.time + point.duration;
+    const level = point.level;
+
+    // Create smooth duck: attack -> hold -> release
+    const attackEnd = startTime + attack / 1000;
+    const releaseStart = endTime - release / 1000;
+
+    // Attack phase: 1 -> level
+    expressions.push(
+      `if(between(t,${startTime},${attackEnd}),1-(1-${level})*(t-${startTime})/${attack / 1000}`,
+    );
+    // Hold phase: level
+    expressions.push(`if(between(t,${attackEnd},${releaseStart}),${level}`);
+    // Release phase: level -> 1
+    expressions.push(
+      `if(between(t,${releaseStart},${endTime}),${level}+(1-${level})*(t-${releaseStart})/${release / 1000}`,
+    );
+  }
+
+  // Default: full volume
+  const expr = expressions.join(',') + ',1' + ')'.repeat(expressions.length);
+
+  return `volume='${expr}'`;
+}
+
+/**
+ * Generate simple sidechain ducking filter.
+ * Ducks audio when another audio stream is present.
+ */
+export function generateSidechainDuckFilter(
+  threshold: number = 0.015,
+  ratio: number = 3,
+  attack: number = 20,
+  release: number = 250,
+): string {
+  // sidechaincompress: compresses audio based on another audio signal
+  return [
+    'sidechaincompress=',
+    `threshold=${threshold}`,
+    `:ratio=${ratio}`,
+    `:attack=${attack}`,
+    `:release=${release}`,
+    ':level_in=1',
+    ':level_sc=1',
+    ':mix=1',
+  ].join('');
+}
+
+/**
+ * Generate audio fade filter.
+ */
+export function generateAudioFadeFilter(
+  fadeIn?: number,
+  fadeOut?: number,
+  duration?: number,
+): string {
+  const filters: string[] = [];
+
+  if (fadeIn && fadeIn > 0) {
+    filters.push(`afade=t=in:st=0:d=${fadeIn}`);
+  }
+
+  if (fadeOut && fadeOut > 0 && duration) {
+    const startTime = Math.max(0, duration - fadeOut);
+    filters.push(`afade=t=out:st=${startTime}:d=${fadeOut}`);
+  }
+
+  return filters.join(',');
+}
+
+/**
+ * Generate audio volume adjustment filter.
+ */
+export function generateVolumeFilter(level: number): string {
+  return `volume=${level}`;
+}
+
+/**
+ * Generate audio normalization filter.
+ */
+export function generateNormalizeFilter(
+  target: number = -16, // target loudness in LUFS
+): string {
+  return `loudnorm=I=${target}:TP=-1.5:LRA=11`;
+}
+
+/**
+ * Generate complete audio processing chain.
+ */
+export function generateAudioProcessingChain(options: {
+  normalize?: boolean;
+  volume?: number;
+  fadeIn?: number;
+  fadeOut?: number;
+  duration?: number;
+  ducking?: DuckingConfig;
+}): string {
+  const filters: string[] = [];
+
+  // Normalize first
+  if (options.normalize) {
+    filters.push(generateNormalizeFilter());
+  }
+
+  // Apply ducking
+  if (options.ducking) {
+    const duckFilter = generateAudioDuckingFilter(options.ducking);
+    if (duckFilter) {
+      filters.push(duckFilter);
+    }
+  }
+
+  // Adjust volume
+  if (options.volume !== undefined && options.volume !== 1) {
+    filters.push(generateVolumeFilter(options.volume));
+  }
+
+  // Apply fades
+  const fadeFilter = generateAudioFadeFilter(options.fadeIn, options.fadeOut, options.duration);
+  if (fadeFilter) {
+    filters.push(fadeFilter);
+  }
+
+  return filters.join(',');
+}
