@@ -236,6 +236,12 @@ describe('Effects Module', () => {
         expect(result).toContain('tblend=all_mode=average');
       });
 
+      it('should use default strength when not provided', () => {
+        const result = generateMotionBlurFilter();
+        expect(result).toContain('tblend=all_mode=average');
+        expect(result).toContain('all_opacity=0.25'); // 0.5 * 0.5
+      });
+
       it('should clamp strength between 0 and 1', () => {
         const result1 = generateMotionBlurFilter(-1);
         const result2 = generateMotionBlurFilter(2);
@@ -249,6 +255,12 @@ describe('Effects Module', () => {
         const result = generateAdaptiveMotionBlurFilter(30);
         expect(result).toContain('minterpolate=fps=60');
         expect(result).toContain('mi_mode=blend');
+      });
+
+      it('should use default fps when not provided', () => {
+        const result = generateAdaptiveMotionBlurFilter();
+        expect(result).toContain('minterpolate=fps=60'); // 30 * 2
+        expect(result).toContain('fps=30');
       });
     });
 

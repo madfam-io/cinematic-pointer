@@ -263,7 +263,8 @@ describe('UesEmitter', () => {
       );
     });
   });
-});
 
-// Note: writeDocument and parseUesFile use dynamic imports which require --experimental-vm-modules
-// Those functions are tested via integration tests rather than unit tests
+  // Note: writeDocument and parseUesFile use dynamic imports (await import('fs/promises'))
+  // which require --experimental-vm-modules in Jest.
+  // These functions are tested via integration tests rather than unit tests.
+});
