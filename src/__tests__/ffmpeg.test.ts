@@ -1,4 +1,4 @@
-import { FFmpegCommand } from '../postprod/ffmpeg';
+import { FFmpegCommand, ffmpeg } from '../postprod/ffmpeg';
 
 describe('FFmpegCommand', () => {
   describe('fluent API', () => {
@@ -228,5 +228,42 @@ describe('FFmpegCommand', () => {
 
       expect(result).toBe(cmd); // All methods should return this
     });
+  });
+
+  describe('toString', () => {
+    it('should return full command string', () => {
+      const cmd = new FFmpegCommand()
+        .overwrite()
+        .input('/input.mp4')
+        .videoCodec('libx264')
+        .output('/output.mp4');
+
+      const str = cmd.toString();
+      expect(str).toContain('ffmpeg');
+      expect(str).toContain('-y');
+      expect(str).toContain('-i /input.mp4');
+      expect(str).toContain('-c:v libx264');
+      expect(str).toContain('/output.mp4');
+    });
+  });
+});
+
+describe('ffmpeg factory', () => {
+  it('should create a new FFmpegCommand instance', () => {
+    const cmd = ffmpeg();
+    expect(cmd).toBeInstanceOf(FFmpegCommand);
+  });
+
+  it('should create independent instances', () => {
+    const cmd1 = ffmpeg();
+    const cmd2 = ffmpeg();
+
+    cmd1.input('/input1.mp4');
+    cmd2.input('/input2.mp4');
+
+    expect(cmd1.build()).toContain('/input1.mp4');
+    expect(cmd1.build()).not.toContain('/input2.mp4');
+    expect(cmd2.build()).toContain('/input2.mp4');
+    expect(cmd2.build()).not.toContain('/input1.mp4');
   });
 });

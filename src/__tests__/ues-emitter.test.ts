@@ -265,5 +265,5 @@ describe('UesEmitter', () => {
   });
 });
 
-// Note: parseUesFile uses dynamic imports which require --experimental-vm-modules
+// Note: writeDocument and parseUesFile use dynamic imports which require --experimental-vm-modules
 // Those functions are tested via integration tests rather than unit tests

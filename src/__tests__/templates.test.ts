@@ -138,6 +138,13 @@ describe('Templates Module', () => {
       expect(draft.crf).toBeGreaterThan(standard.crf);
       expect(standard.crf).toBeGreaterThan(high.crf);
     });
+
+    it('should return standard preset for unknown quality', () => {
+      const preset = getQualityPreset('unknown' as 'standard');
+      expect(preset.crf).toBe(23);
+      expect(preset.preset).toBe('medium');
+      expect(preset.audioBitrate).toBe('192k');
+    });
   });
 
   describe('Template Caption Styles', () => {

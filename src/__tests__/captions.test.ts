@@ -1,3 +1,6 @@
+import { mkdir, rm, readFile } from 'fs/promises';
+import path from 'path';
+
 import {
   Caption,
   CaptionStyle,
@@ -14,14 +17,28 @@ import {
   offsetCaptions,
   scaleCaptionTimes,
   filterCaptionsByTimeRange,
+  writeCaptionsToFile,
+  writeSRTToFile,
+  writeVTTToFile,
+  exportCaptions,
+  exportAllCaptionFormats,
 } from '../postprod/captions';
 
 describe('Captions Module', () => {
+  const testDir = path.join(__dirname, '.test-captions');
   const sampleCaptions: Caption[] = [
     { start: 0, end: 3, text: 'Hello world' },
     { start: 3, end: 6, text: 'This is a test' },
     { start: 6, end: 10, text: 'Goodbye' },
   ];
+
+  beforeAll(async () => {
+    await mkdir(testDir, { recursive: true });
+  });
+
+  afterAll(async () => {
+    await rm(testDir, { recursive: true, force: true });
+  });
 
   describe('Types', () => {
     it('should have valid default caption style', () => {
@@ -137,6 +154,21 @@ describe('Captions Module', () => {
         const result = extractCaptionsFromEvents(events);
         expect(result).toHaveLength(1);
       });
+
+      it('should handle consecutive captions without clear', () => {
+        const events = [
+          { ts: 0, t: 'caption.set', text: 'First' },
+          { ts: 2000, t: 'caption.set', text: 'Second' },
+          { ts: 4000, t: 'caption.set', text: 'Third' },
+          { ts: 6000, t: 'caption.clear' },
+        ];
+
+        const result = extractCaptionsFromEvents(events);
+        expect(result).toHaveLength(3);
+        expect(result[0]).toEqual({ start: 0, end: 2, text: 'First' });
+        expect(result[1]).toEqual({ start: 2, end: 4, text: 'Second' });
+        expect(result[2]).toEqual({ start: 4, end: 6, text: 'Third' });
+      });
     });
 
     describe('generateCaptionsFromSteps', () => {
@@ -194,6 +226,50 @@ describe('Captions Module', () => {
 
         expect(topResult).toContain(':y=50');
         expect(bottomResult).toContain(':y=h-th-50');
+      });
+
+      it('should apply center position', () => {
+        const result = generateDrawTextFilter('Test', 0, 5, { position: 'center' });
+        expect(result).toContain(':y=(h-th)/2');
+      });
+
+      it('should apply left alignment', () => {
+        const result = generateDrawTextFilter('Test', 0, 5, { alignment: 'left' });
+        expect(result).toContain(':x=50');
+      });
+
+      it('should apply right alignment', () => {
+        const result = generateDrawTextFilter('Test', 0, 5, { alignment: 'right' });
+        expect(result).toContain(':x=w-tw-50');
+      });
+
+      it('should apply center alignment by default', () => {
+        const result = generateDrawTextFilter('Test', 0, 5);
+        expect(result).toContain(':x=(w-tw)/2');
+      });
+
+      it('should include outline when specified', () => {
+        const result = generateDrawTextFilter('Test', 0, 5, {
+          outline: 2,
+          outlineColor: 'black',
+        });
+        expect(result).toContain(':borderw=2');
+        expect(result).toContain(':bordercolor=black');
+      });
+
+      it('should include shadow when specified', () => {
+        const result = generateDrawTextFilter('Test', 0, 5, { shadow: 3 });
+        expect(result).toContain(':shadowx=3');
+        expect(result).toContain(':shadowy=3');
+      });
+
+      it('should include fontSize and fontColor', () => {
+        const result = generateDrawTextFilter('Test', 0, 5, {
+          fontSize: 48,
+          fontColor: 'yellow',
+        });
+        expect(result).toContain(':fontsize=48');
+        expect(result).toContain(':fontcolor=yellow');
       });
     });
 
@@ -341,6 +417,204 @@ describe('Captions Module', () => {
         const result = filterCaptionsByTimeRange(sampleCaptions, 15, 20);
         expect(result).toHaveLength(0);
       });
+    });
+  });
+
+  describe('File Writing', () => {
+    describe('writeCaptionsToFile', () => {
+      it('should write ASS file and return path', async () => {
+        const outputPath = path.join(testDir, 'test-captions.ass');
+        const result = await writeCaptionsToFile(sampleCaptions, outputPath, 1920, 1080);
+
+        expect(result).toBe(outputPath);
+        const content = await readFile(result, 'utf-8');
+        expect(content).toContain('[Script Info]');
+        expect(content).toContain('Hello world');
+      });
+
+      it('should append .ass extension if missing', async () => {
+        const outputPath = path.join(testDir, 'test-no-ext');
+        const result = await writeCaptionsToFile(sampleCaptions, outputPath, 1920, 1080);
+
+        expect(result).toBe(`${outputPath}.ass`);
+      });
+
+      it('should apply custom style', async () => {
+        const outputPath = path.join(testDir, 'test-styled.ass');
+        const style: CaptionStyle = { fontSize: 72, bold: true };
+        const result = await writeCaptionsToFile(sampleCaptions, outputPath, 1920, 1080, style);
+
+        const content = await readFile(result, 'utf-8');
+        expect(content).toContain(',72,'); // fontSize
+        expect(content).toContain(',1,0,'); // bold=1, italic=0
+      });
+    });
+
+    describe('writeSRTToFile', () => {
+      it('should write SRT file and return path', async () => {
+        const outputPath = path.join(testDir, 'test-captions.srt');
+        const result = await writeSRTToFile(sampleCaptions, outputPath);
+
+        expect(result).toBe(outputPath);
+        const content = await readFile(result, 'utf-8');
+        expect(content).toContain('1\n00:00:00,000 --> 00:00:03,000\nHello world');
+      });
+
+      it('should append .srt extension if missing', async () => {
+        const outputPath = path.join(testDir, 'test-srt-no-ext');
+        const result = await writeSRTToFile(sampleCaptions, outputPath);
+
+        expect(result).toBe(`${outputPath}.srt`);
+      });
+    });
+
+    describe('writeVTTToFile', () => {
+      it('should write VTT file and return path', async () => {
+        const outputPath = path.join(testDir, 'test-captions.vtt');
+        const result = await writeVTTToFile(sampleCaptions, outputPath);
+
+        expect(result).toBe(outputPath);
+        const content = await readFile(result, 'utf-8');
+        expect(content).toMatch(/^WEBVTT\n/);
+        expect(content).toContain('Hello world');
+      });
+
+      it('should append .vtt extension if missing', async () => {
+        const outputPath = path.join(testDir, 'test-vtt-no-ext');
+        const result = await writeVTTToFile(sampleCaptions, outputPath);
+
+        expect(result).toBe(`${outputPath}.vtt`);
+      });
+    });
+  });
+
+  describe('Export Functions', () => {
+    describe('exportCaptions', () => {
+      it('should export to SRT format', async () => {
+        const outputPath = path.join(testDir, 'export-test');
+        const result = await exportCaptions(sampleCaptions, outputPath, 'srt');
+
+        expect(result).toBe(`${outputPath}.srt`);
+        const content = await readFile(result, 'utf-8');
+        expect(content).toContain('-->');
+      });
+
+      it('should export to VTT format', async () => {
+        const outputPath = path.join(testDir, 'export-test-vtt');
+        const result = await exportCaptions(sampleCaptions, outputPath, 'vtt');
+
+        expect(result).toBe(`${outputPath}.vtt`);
+        const content = await readFile(result, 'utf-8');
+        expect(content).toMatch(/^WEBVTT\n/);
+      });
+
+      it('should export to ASS format with default dimensions', async () => {
+        const outputPath = path.join(testDir, 'export-test-ass');
+        const result = await exportCaptions(sampleCaptions, outputPath, 'ass');
+
+        expect(result).toBe(`${outputPath}.ass`);
+        const content = await readFile(result, 'utf-8');
+        expect(content).toContain('PlayResX: 1920');
+        expect(content).toContain('PlayResY: 1080');
+      });
+
+      it('should export to ASS format with custom dimensions', async () => {
+        const outputPath = path.join(testDir, 'export-test-ass-custom');
+        const result = await exportCaptions(sampleCaptions, outputPath, 'ass', {
+          videoWidth: 1280,
+          videoHeight: 720,
+        });
+
+        const content = await readFile(result, 'utf-8');
+        expect(content).toContain('PlayResX: 1280');
+        expect(content).toContain('PlayResY: 720');
+      });
+
+      it('should export to ASS format with custom style', async () => {
+        const outputPath = path.join(testDir, 'export-test-ass-style');
+        const result = await exportCaptions(sampleCaptions, outputPath, 'ass', {
+          style: { fontSize: 64 },
+        });
+
+        const content = await readFile(result, 'utf-8');
+        expect(content).toContain(',64,');
+      });
+
+      it('should throw for unknown format', async () => {
+        const outputPath = path.join(testDir, 'export-unknown');
+        await expect(
+          exportCaptions(sampleCaptions, outputPath, 'unknown' as 'srt'),
+        ).rejects.toThrow('Unknown caption format: unknown');
+      });
+    });
+
+    describe('exportAllCaptionFormats', () => {
+      it('should export to all formats', async () => {
+        const basePath = path.join(testDir, 'export-all');
+        const result = await exportAllCaptionFormats(sampleCaptions, basePath, 1920, 1080);
+
+        // The function passes basePath.srt/vtt/ass which already have extension
+        expect(result.srt).toBe(`${basePath}.srt`);
+        expect(result.vtt).toBe(`${basePath}.vtt`);
+        expect(result.ass).toBe(`${basePath}.ass`);
+
+        // Verify files exist and have content
+        const srtContent = await readFile(result.srt, 'utf-8');
+        const vttContent = await readFile(result.vtt, 'utf-8');
+        const assContent = await readFile(result.ass, 'utf-8');
+
+        expect(srtContent).toContain('Hello world');
+        expect(vttContent).toContain('WEBVTT');
+        expect(assContent).toContain('[Script Info]');
+      });
+
+      it('should apply custom style to ASS export', async () => {
+        const basePath = path.join(testDir, 'export-all-styled');
+        const result = await exportAllCaptionFormats(sampleCaptions, basePath, 1920, 1080, {
+          fontSize: 56,
+        });
+
+        const assContent = await readFile(result.ass, 'utf-8');
+        expect(assContent).toContain(',56,');
+      });
+    });
+  });
+
+  describe('ASS Alignment Combinations', () => {
+    it('should handle top-left alignment', () => {
+      const style: CaptionStyle = { position: 'top', alignment: 'left' };
+      const result = generateASSSubtitles(sampleCaptions, 1920, 1080, style);
+      expect(result).toContain(',7,'); // ASS alignment 7 = top-left
+    });
+
+    it('should handle top-right alignment', () => {
+      const style: CaptionStyle = { position: 'top', alignment: 'right' };
+      const result = generateASSSubtitles(sampleCaptions, 1920, 1080, style);
+      expect(result).toContain(',9,'); // ASS alignment 9 = top-right
+    });
+
+    it('should handle center-left alignment', () => {
+      const style: CaptionStyle = { position: 'center', alignment: 'left' };
+      const result = generateASSSubtitles(sampleCaptions, 1920, 1080, style);
+      expect(result).toContain(',4,'); // ASS alignment 4 = middle-left
+    });
+
+    it('should handle center-right alignment', () => {
+      const style: CaptionStyle = { position: 'center', alignment: 'right' };
+      const result = generateASSSubtitles(sampleCaptions, 1920, 1080, style);
+      expect(result).toContain(',6,'); // ASS alignment 6 = middle-right
+    });
+
+    it('should handle bottom-left alignment', () => {
+      const style: CaptionStyle = { position: 'bottom', alignment: 'left' };
+      const result = generateASSSubtitles(sampleCaptions, 1920, 1080, style);
+      expect(result).toContain(',1,'); // ASS alignment 1 = bottom-left
+    });
+
+    it('should handle bottom-right alignment', () => {
+      const style: CaptionStyle = { position: 'bottom', alignment: 'right' };
+      const result = generateASSSubtitles(sampleCaptions, 1920, 1080, style);
+      expect(result).toContain(',3,'); // ASS alignment 3 = bottom-right
     });
   });
 });
