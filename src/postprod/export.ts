@@ -7,10 +7,16 @@
 import { mkdir } from 'fs/promises';
 import path from 'path';
 
+import {
+  getAspectConfig,
+  calculateCropDimensions,
+  needsCrop,
+  generateCropFilterString,
+} from '../utils/aspect';
 import { logger } from '../utils/logger';
 
 import { ffmpeg, probe, ProbeResult } from './ffmpeg';
-import { getAspectConfig, getQualityPreset } from './templates';
+import { getQualityPreset } from './templates';
 
 /**
  * Video output format configuration.
@@ -367,28 +373,14 @@ async function exportSingleFormat(options: {
   const cmd = ffmpeg().overwrite().input(options.inputPath);
 
   // Handle aspect ratio conversion
-  const inputAspect = videoInfo.width / videoInfo.height;
   const targetAspect = aspectConfig.ratio;
 
   const filters: string[] = [];
 
-  if (Math.abs(inputAspect - targetAspect) > 0.01) {
-    // Need to crop and scale
-    let cropW: number, cropH: number, cropX: number, cropY: number;
-
-    if (inputAspect > targetAspect) {
-      cropH = videoInfo.height;
-      cropW = Math.floor(videoInfo.height * targetAspect);
-      cropX = Math.floor((videoInfo.width - cropW) / 2);
-      cropY = 0;
-    } else {
-      cropW = videoInfo.width;
-      cropH = Math.floor(videoInfo.width / targetAspect);
-      cropX = 0;
-      cropY = Math.floor((videoInfo.height - cropH) / 2);
-    }
-
-    filters.push(`crop=${cropW}:${cropH}:${cropX}:${cropY}`);
+  if (needsCrop(videoInfo.width, videoInfo.height, targetAspect)) {
+    // Calculate and apply crop
+    const crop = calculateCropDimensions(videoInfo.width, videoInfo.height, targetAspect);
+    filters.push(generateCropFilterString(crop));
   }
 
   // Scale to target dimensions

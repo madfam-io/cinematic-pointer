@@ -4,10 +4,11 @@
  * Orchestrates video processing with effects, captions, and music.
  */
 
-import { mkdir, readFile, access, rm } from 'fs/promises';
+import { mkdir, access, rm } from 'fs/promises';
 import path from 'path';
 
 import { UesEvent } from '../types';
+import { parseNDJSON } from '../utils/ndjson';
 
 import {
   Caption,
@@ -90,11 +91,7 @@ export async function runPipeline(options: PipelineOptions): Promise<PipelineRes
   stages.push('Video probed');
 
   // Load events
-  const eventsContent = await readFile(options.eventsPath, 'utf-8');
-  const events: UesEvent[] = eventsContent
-    .split('\n')
-    .filter((line) => line.trim())
-    .map((line) => JSON.parse(line));
+  const events = await parseNDJSON<UesEvent>(options.eventsPath);
 
   stages.push('Events loaded');
 

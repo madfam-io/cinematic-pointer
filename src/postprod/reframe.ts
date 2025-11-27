@@ -4,12 +4,17 @@
  * Smart cropping and aspect ratio conversion for multi-platform export.
  */
 
-import { readFile } from 'fs/promises';
-
 import { UesEvent } from '../types';
+import {
+  getAspectConfig,
+  calculateCropDimensions,
+  needsCrop,
+  getAvailableAspects as getAspectsList,
+} from '../utils/aspect';
+import { parseNDJSON } from '../utils/ndjson';
 
 import { ffmpeg, probe } from './ffmpeg';
-import { getAspectConfig, getQualityPreset } from './templates';
+import { getQualityPreset } from './templates';
 
 export interface ReframeOptions {
   inputPath: string;
@@ -58,7 +63,6 @@ export async function reframeVideo(options: ReframeOptions): Promise<ReframeResu
 
   const inputWidth = videoInfo.width;
   const inputHeight = videoInfo.height;
-  const inputAspect = inputWidth / inputHeight;
 
   // Get target dimensions
   const targetConfig = getAspectConfig(options.targetAspect);
@@ -72,19 +76,8 @@ export async function reframeVideo(options: ReframeOptions): Promise<ReframeResu
   let cropWidth = inputWidth;
   let cropHeight = inputHeight;
 
-  if (Math.abs(inputAspect - targetAspect) > 0.01) {
-    // Need to crop
-    if (inputAspect > targetAspect) {
-      // Input is wider - crop sides
-      cropHeight = inputHeight;
-      cropWidth = Math.floor(inputHeight * targetAspect);
-    } else {
-      // Input is taller - crop top/bottom
-      cropWidth = inputWidth;
-      cropHeight = Math.floor(inputWidth / targetAspect);
-    }
-
-    // Calculate crop position
+  if (needsCrop(inputWidth, inputHeight, targetAspect)) {
+    // Calculate crop dimensions
     if (options.smartCrop && options.eventsPath) {
       // Use event data to determine optimal crop position
       const focusPoints = await extractFocusPoints(options.eventsPath, inputWidth, inputHeight);
@@ -92,15 +85,19 @@ export async function reframeVideo(options: ReframeOptions): Promise<ReframeResu
         focusPoints,
         inputWidth,
         inputHeight,
-        cropWidth,
-        cropHeight,
+        targetAspect,
       );
       cropX = optimalPosition.x;
       cropY = optimalPosition.y;
+      cropWidth = optimalPosition.width;
+      cropHeight = optimalPosition.height;
     } else {
-      // Center crop
-      cropX = Math.floor((inputWidth - cropWidth) / 2);
-      cropY = Math.floor((inputHeight - cropHeight) / 2);
+      // Center crop using utility
+      const crop = calculateCropDimensions(inputWidth, inputHeight, targetAspect);
+      cropX = crop.cropX;
+      cropY = crop.cropY;
+      cropWidth = crop.cropWidth;
+      cropHeight = crop.cropHeight;
     }
   }
 
@@ -168,11 +165,7 @@ async function extractFocusPoints(
   videoWidth: number,
   videoHeight: number,
 ): Promise<FocusPoint[]> {
-  const content = await readFile(eventsPath, 'utf-8');
-  const events: UesEvent[] = content
-    .split('\n')
-    .filter((line) => line.trim())
-    .map((line) => JSON.parse(line));
+  const events = await parseNDJSON<UesEvent>(eventsPath);
 
   const focusPoints: FocusPoint[] = [];
 
@@ -233,14 +226,20 @@ function calculateOptimalCropPosition(
   focusPoints: FocusPoint[],
   inputWidth: number,
   inputHeight: number,
-  cropWidth: number,
-  cropHeight: number,
-): { x: number; y: number } {
+  targetAspect: number,
+): { x: number; y: number; width: number; height: number } {
+  // Calculate crop dimensions using utility
+  const baseCrop = calculateCropDimensions(inputWidth, inputHeight, targetAspect);
+  const cropWidth = baseCrop.cropWidth;
+  const cropHeight = baseCrop.cropHeight;
+
   if (focusPoints.length === 0) {
     // Default to center
     return {
-      x: Math.floor((inputWidth - cropWidth) / 2),
-      y: Math.floor((inputHeight - cropHeight) / 2),
+      x: baseCrop.cropX,
+      y: baseCrop.cropY,
+      width: cropWidth,
+      height: cropHeight,
     };
   }
 
@@ -266,7 +265,7 @@ function calculateOptimalCropPosition(
   cropX = Math.max(0, Math.min(cropX, inputWidth - cropWidth));
   cropY = Math.max(0, Math.min(cropY, inputHeight - cropHeight));
 
-  return { x: cropX, y: cropY };
+  return { x: cropX, y: cropY, width: cropWidth, height: cropHeight };
 }
 
 /**
@@ -380,11 +379,5 @@ export async function batchReframe(
  * Get available aspect ratios.
  */
 export function getAvailableAspects(): Array<{ name: string; ratio: string; description: string }> {
-  return [
-    { name: '16:9', ratio: '16:9', description: 'YouTube, TV (1920x1080)' },
-    { name: '9:16', ratio: '9:16', description: 'TikTok, Instagram Reels (1080x1920)' },
-    { name: '1:1', ratio: '1:1', description: 'Instagram Feed (1080x1080)' },
-    { name: '4:3', ratio: '4:3', description: 'Classic TV (1440x1080)' },
-    { name: '21:9', ratio: '21:9', description: 'Ultrawide Cinema (2560x1080)' },
-  ];
+  return getAspectsList();
 }

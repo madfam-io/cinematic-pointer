@@ -5,8 +5,8 @@
  */
 
 export * from './ffmpeg';
-export * from './effects';
-export * from './captions';
+export * from './effects/index';
+export * from './captions/index';
 export * from './templates';
 export * from './pipeline';
 export * from './reframe';
