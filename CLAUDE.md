@@ -200,6 +200,7 @@ Journeys are defined in `.cinematicpointer.json` files:
 | `waitFor`    | `locator` or condition | `timeoutMs`                    |
 | `cameraMark` | -                      | `zoom`, `target`, `durationMs` |
 | `pause`      | `durationMs`           | -                              |
+| `navigate`   | `to` (URL)             | `waitFor`                      |
 
 ## Locator Strategy Priority
 
@@ -327,10 +328,23 @@ const css = themeManager.generateOverlayStyles();
 
 ### Unit Tests (`src/__tests__/`)
 
-- DSL parsing and validation
-- Selector resolution
-- UES event emission
-- Type definitions
+**644 tests across 22 test suites** covering:
+
+- Captions: generation, formats (ASS/SRT/VTT), manipulation
+- Effects: zoom, speed, fade, motion blur, audio ducking
+- Export: multi-format output, platform presets
+- Privacy: blur filter generation, selector matching
+- FFmpeg: command builder, filter chains
+- Templates: edit presets, quality settings
+- Themes: preset validation, CSS generation
+- Validation: input/file/URL/journey validation
+- Selector: resolution strategies
+- Errors: custom error classes, utilities
+- Logger: structured logging
+- Retry: exponential backoff with jitter
+- Health: dependency checks
+- UES: event emission, NDJSON I/O
+- Time/Aspect/Colors: utility functions
 
 ### E2E Tests (`tests/e2e/`)
 
@@ -347,6 +361,17 @@ npm run test:coverage             # With coverage
 npm run test:e2e                  # E2E tests
 npm run test:e2e -- --project=chromium  # Single browser
 ```
+
+### Coverage
+
+| Metric     | Coverage |
+| ---------- | -------- |
+| Statements | ~54%     |
+| Branches   | ~57%     |
+| Functions  | ~67%     |
+| Lines      | ~54%     |
+
+**Note:** Remaining uncovered code requires integration tests (FFmpeg/Playwright) or uses dynamic imports.
 
 ## Error Handling
 
