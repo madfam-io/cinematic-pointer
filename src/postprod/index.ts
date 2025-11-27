@@ -9,3 +9,4 @@ export * from './effects';
 export * from './captions';
 export * from './templates';
 export * from './pipeline';
+export * from './reframe';
