@@ -80,7 +80,7 @@ export interface Region {
 export interface UesEvent {
   ts: number;
   t: string;
-  data?: any;
+  data?: Record<string, unknown>;
   to?: number[];
   from?: number[];
   ease?: string;

@@ -2,7 +2,7 @@ import { mkdir } from 'fs/promises';
 import path from 'path';
 
 import { PlaywrightWebDriver, BrowserType } from '../drivers/playwright';
-import { Journey, JourneyStep, Condition, RecordingArtifacts } from '../types';
+import { Journey, JourneyStep, Condition, RecordingArtifacts, Selector } from '../types';
 import { UesEmitter } from '../utils/ues-emitter';
 
 export interface ExecutorOptions {
@@ -289,7 +289,7 @@ export class JourneyExecutor {
     });
   }
 
-  private async getTargetRegion(selector: any): Promise<number[]> {
+  private async getTargetRegion(selector: Selector): Promise<number[]> {
     if (!this.driver) return [0, 0, 100, 100];
 
     try {

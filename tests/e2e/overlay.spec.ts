@@ -172,7 +172,7 @@ test.describe('Overlay Injection E2E', () => {
       // Move cursor
       await page.evaluate(() => {
         (
-          window as unknown as Record<string, { moveTo: (x: number, y: number) => void }>
+          window as unknown as Record<string, { moveTo: (_x: number, _y: number) => void }>
         ).__cpOverlay.moveTo(300, 200);
       });
 
@@ -198,7 +198,7 @@ test.describe('Overlay Injection E2E', () => {
         (
           window as unknown as Record<
             string,
-            { init: () => void; moveTo: (x: number, y: number) => void }
+            { init: () => void; moveTo: (_x: number, _y: number) => void }
           >
         ).__cpOverlay.init(),
       );
@@ -208,7 +208,7 @@ test.describe('Overlay Injection E2E', () => {
         const overlay = (
           window as unknown as Record<
             string,
-            { moveTo: (x: number, y: number) => void; click: () => void }
+            { moveTo: (_x: number, _y: number) => void; click: () => void }
           >
         ).__cpOverlay;
         overlay.moveTo(400, 300);
@@ -244,7 +244,7 @@ test.describe('Overlay Injection E2E', () => {
         const h1 = document.querySelector('h1');
         if (h1) {
           (
-            window as unknown as Record<string, { showFocusRing: (el: Element) => void }>
+            window as unknown as Record<string, { showFocusRing: (_el: Element) => void }>
           ).__cpOverlay.showFocusRing(h1);
         }
       });
@@ -336,7 +336,7 @@ test.describe('Overlay Injection E2E', () => {
       // Create trail
       await page.evaluate(() => {
         const overlay = (
-          window as unknown as Record<string, { addTrail: (x: number, y: number) => void }>
+          window as unknown as Record<string, { addTrail: (_x: number, _y: number) => void }>
         ).__cpOverlay;
         overlay.addTrail(100, 100);
         overlay.addTrail(120, 110);

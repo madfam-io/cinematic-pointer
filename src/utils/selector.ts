@@ -3,6 +3,94 @@ import { Page, Locator } from 'playwright';
 import { Selector } from '../types';
 
 /**
+ * ARIA roles supported by Playwright's getByRole.
+ * This allows dynamic role strings while maintaining type safety.
+ */
+type AriaRole =
+  | 'alert'
+  | 'alertdialog'
+  | 'application'
+  | 'article'
+  | 'banner'
+  | 'blockquote'
+  | 'button'
+  | 'caption'
+  | 'cell'
+  | 'checkbox'
+  | 'code'
+  | 'columnheader'
+  | 'combobox'
+  | 'complementary'
+  | 'contentinfo'
+  | 'definition'
+  | 'deletion'
+  | 'dialog'
+  | 'directory'
+  | 'document'
+  | 'emphasis'
+  | 'feed'
+  | 'figure'
+  | 'form'
+  | 'generic'
+  | 'grid'
+  | 'gridcell'
+  | 'group'
+  | 'heading'
+  | 'img'
+  | 'insertion'
+  | 'link'
+  | 'list'
+  | 'listbox'
+  | 'listitem'
+  | 'log'
+  | 'main'
+  | 'marquee'
+  | 'math'
+  | 'meter'
+  | 'menu'
+  | 'menubar'
+  | 'menuitem'
+  | 'menuitemcheckbox'
+  | 'menuitemradio'
+  | 'navigation'
+  | 'none'
+  | 'note'
+  | 'option'
+  | 'paragraph'
+  | 'presentation'
+  | 'progressbar'
+  | 'radio'
+  | 'radiogroup'
+  | 'region'
+  | 'row'
+  | 'rowgroup'
+  | 'rowheader'
+  | 'scrollbar'
+  | 'search'
+  | 'searchbox'
+  | 'separator'
+  | 'slider'
+  | 'spinbutton'
+  | 'status'
+  | 'strong'
+  | 'subscript'
+  | 'superscript'
+  | 'switch'
+  | 'tab'
+  | 'table'
+  | 'tablist'
+  | 'tabpanel'
+  | 'term'
+  | 'textbox'
+  | 'time'
+  | 'timer'
+  | 'toolbar'
+  | 'tooltip'
+  | 'tree'
+  | 'treegrid'
+  | 'treeitem';
+
+/**
  * Resolves a Selector from the Journey DSL to a Playwright Locator.
  *
  * Priority order (per spec):
@@ -15,7 +103,7 @@ export function resolveSelector(page: Page, selector: Selector): Locator {
   if (selector.by) {
     switch (selector.by) {
       case 'role':
-        return page.getByRole(selector.value as any, {
+        return page.getByRole(selector.value as AriaRole, {
           name: selector.name,
         });
 
@@ -46,7 +134,7 @@ export function resolveSelector(page: Page, selector: Selector): Locator {
 
   // 1. Role with optional name (accessibility first)
   if (selector.role) {
-    return page.getByRole(selector.role as any, {
+    return page.getByRole(selector.role as AriaRole, {
       name: selector.name,
     });
   }
