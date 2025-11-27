@@ -13,7 +13,7 @@ export interface Meta {
 
 export interface JourneyStep {
   comment?: string;
-  action: 
+  action:
     | 'click'
     | 'fill'
     | 'scroll'

@@ -1,0 +1,68 @@
+{
+  "meta": {
+    "name": "Instagram Feed Demo",
+    "description": "Square format demo optimized for Instagram feed (1:1)",
+    "viewport": {
+      "w": 1080,
+      "h": 1080
+    }
+  },
+  "start": {
+    "url": "https://example.com"
+  },
+  "steps": [
+    {
+      "comment": "Opening scene",
+      "action": "waitFor",
+      "locator": {
+        "text": "Example Domain"
+      },
+      "timeoutMs": 5000
+    },
+    {
+      "comment": "Focus on content",
+      "action": "cameraMark",
+      "cinema": {
+        "zoom": 1.15
+      },
+      "target": {
+        "text": "Example Domain"
+      },
+      "durationMs": 1500
+    },
+    {
+      "comment": "Scroll reveal",
+      "action": "scroll",
+      "to": "center",
+      "durationMs": 1200
+    },
+    {
+      "comment": "Interactive element",
+      "action": "hover",
+      "locator": {
+        "text": "More information..."
+      }
+    },
+    {
+      "comment": "Action moment",
+      "action": "click",
+      "locator": {
+        "text": "More information..."
+      },
+      "cinema": {
+        "beat": "impact",
+        "ripple": true
+      }
+    },
+    {
+      "comment": "Closing shot",
+      "action": "pause",
+      "durationMs": 1500
+    }
+  ],
+  "output": {
+    "preset": "trailer",
+    "aspect": "1:1",
+    "captions": true
+  }
+}

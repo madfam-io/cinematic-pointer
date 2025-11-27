@@ -5,33 +5,20 @@
       "type": "node",
       "request": "launch",
       "name": "Debug CLI",
-      "skipFiles": [
-        "<node_internals>/**"
-      ],
+      "skipFiles": ["<node_internals>/**"],
       "program": "${workspaceFolder}/src/cli.ts",
       "preLaunchTask": "npm: build",
-      "outFiles": [
-        "${workspaceFolder}/dist/**/*.js"
-      ],
+      "outFiles": ["${workspaceFolder}/dist/**/*.js"],
       "console": "integratedTerminal",
-      "args": [
-        "run",
-        "journeys/test.json"
-      ]
+      "args": ["run", "journeys/test.json"]
     },
     {
       "type": "node",
       "request": "launch",
       "name": "Debug Current Test",
-      "skipFiles": [
-        "<node_internals>/**"
-      ],
+      "skipFiles": ["<node_internals>/**"],
       "program": "${workspaceFolder}/node_modules/.bin/jest",
-      "args": [
-        "${relativeFile}",
-        "--runInBand",
-        "--no-coverage"
-      ],
+      "args": ["${relativeFile}", "--runInBand", "--no-coverage"],
       "console": "integratedTerminal",
       "internalConsoleOptions": "neverOpen"
     },
@@ -39,14 +26,9 @@
       "type": "node",
       "request": "launch",
       "name": "Debug All Tests",
-      "skipFiles": [
-        "<node_internals>/**"
-      ],
+      "skipFiles": ["<node_internals>/**"],
       "program": "${workspaceFolder}/node_modules/.bin/jest",
-      "args": [
-        "--runInBand",
-        "--no-coverage"
-      ],
+      "args": ["--runInBand", "--no-coverage"],
       "console": "integratedTerminal",
       "internalConsoleOptions": "neverOpen"
     },
@@ -55,10 +37,7 @@
       "type": "node",
       "request": "launch",
       "program": "${workspaceFolder}/node_modules/.bin/playwright",
-      "args": [
-        "test",
-        "--debug"
-      ],
+      "args": ["test", "--debug"],
       "console": "integratedTerminal"
     }
   ]

@@ -1,0 +1,451 @@
+import { chromium, firefox, webkit, Browser, BrowserContext, Page } from 'playwright';
+
+import { CursorOverlay, CursorOverlayOptions } from '../overlay';
+import { Driver, Meta, Selector, Point, Region, Condition } from '../types';
+import { resolveSelector } from '../utils/selector';
+import { UesEmitter } from '../utils/ues-emitter';
+
+export type BrowserType = 'chromium' | 'firefox' | 'webkit';
+
+export interface PlaywrightDriverOptions {
+  browserType?: BrowserType;
+  headless?: boolean;
+  timeout?: number;
+  speed?: number;
+  emitter?: UesEmitter;
+  recording?: {
+    enabled: boolean;
+    outputDir: string;
+    videoSize?: { width: number; height: number };
+  };
+  overlay?: {
+    enabled: boolean;
+    options?: CursorOverlayOptions;
+  };
+}
+
+export class PlaywrightWebDriver implements Driver {
+  private browser: Browser | null = null;
+  private context: BrowserContext | null = null;
+  private page: Page | null = null;
+  private meta: Meta | null = null;
+  private options: PlaywrightDriverOptions;
+  private emitter: UesEmitter | null = null;
+  private startTime: number = 0;
+  private overlay: CursorOverlay | null = null;
+
+  constructor(options: PlaywrightDriverOptions = {}) {
+    this.options = {
+      browserType: options.browserType ?? 'chromium',
+      headless: options.headless ?? false,
+      timeout: options.timeout ?? 30000,
+      speed: options.speed ?? 1,
+      emitter: options.emitter,
+    };
+    this.emitter = options.emitter ?? null;
+  }
+
+  private getTimestamp(): number {
+    return Date.now() - this.startTime;
+  }
+
+  private emit(type: string, data: Record<string, unknown> = {}): void {
+    if (this.emitter) {
+      this.emitter.emit({
+        ts: this.getTimestamp(),
+        t: type,
+        ...data,
+      });
+    }
+  }
+
+  async init(meta: Meta): Promise<void> {
+    this.meta = meta;
+    this.startTime = Date.now();
+
+    const browserLauncher = {
+      chromium,
+      firefox,
+      webkit,
+    }[this.options.browserType!];
+
+    this.browser = await browserLauncher.launch({
+      headless: this.options.headless,
+      slowMo: this.options.speed !== 1 ? Math.round(100 / this.options.speed!) : undefined,
+    });
+
+    // Build context options with optional video recording
+    const contextOptions: Parameters<Browser['newContext']>[0] = {
+      viewport: {
+        width: meta.viewport.w,
+        height: meta.viewport.h,
+      },
+      deviceScaleFactor: meta.viewport.deviceScaleFactor ?? 1,
+    };
+
+    // Add video recording if enabled
+    if (this.options.recording?.enabled) {
+      const { mkdir } = await import('fs/promises');
+      const path = await import('path');
+      const videoDir = path.join(this.options.recording.outputDir, 'raw');
+      await mkdir(videoDir, { recursive: true });
+
+      contextOptions.recordVideo = {
+        dir: videoDir,
+        size: this.options.recording.videoSize ?? {
+          width: Math.min(meta.viewport.w, 1920),
+          height: Math.min(meta.viewport.h, 1080),
+        },
+      };
+
+      this.emit('recording.config', {
+        data: {
+          videoDir,
+          videoSize: contextOptions.recordVideo.size,
+        },
+      });
+    }
+
+    this.context = await this.browser.newContext(contextOptions);
+    this.page = await this.context.newPage();
+    this.page.setDefaultTimeout(this.options.timeout!);
+
+    this.emit('run.start', {
+      data: {
+        meta: {
+          ...meta,
+          canvas: meta.canvas ?? 'web',
+        },
+        recording: this.options.recording?.enabled ?? false,
+      },
+    });
+  }
+
+  async goto(url: string): Promise<void> {
+    if (!this.page) throw new Error('Driver not initialized');
+
+    this.emit('navigation.start', { data: { url } });
+    await this.page.goto(url, { waitUntil: 'domcontentloaded' });
+
+    // Inject cursor overlay if enabled
+    if (this.options.overlay?.enabled) {
+      await this.injectOverlay();
+    }
+
+    this.emit('navigation.end', { data: { url } });
+  }
+
+  /**
+   * Inject the cursor overlay into the current page.
+   */
+  private async injectOverlay(): Promise<void> {
+    if (!this.page) return;
+
+    this.overlay = new CursorOverlay(this.page, this.options.overlay?.options);
+    await this.overlay.inject();
+
+    this.emit('overlay.injected', {
+      data: { enabled: true },
+    });
+  }
+
+  async resolveTarget(sel: Selector): Promise<Point | Region> {
+    if (!this.page) throw new Error('Driver not initialized');
+
+    const locator = resolveSelector(this.page, sel);
+    const box = await locator.boundingBox();
+
+    if (!box) {
+      throw new Error(`Could not resolve bounding box for selector: ${JSON.stringify(sel)}`);
+    }
+
+    return {
+      x: box.x,
+      y: box.y,
+      width: box.width,
+      height: box.height,
+    };
+  }
+
+  async hover(sel: Selector): Promise<void> {
+    if (!this.page) throw new Error('Driver not initialized');
+
+    const locator = resolveSelector(this.page, sel);
+    const box = await locator.boundingBox();
+
+    if (box) {
+      this.emit('cursor.move', {
+        to: [Math.round(box.x + box.width / 2), Math.round(box.y + box.height / 2)],
+        ease: 'inOutCubic',
+      });
+    }
+
+    await locator.hover();
+    this.emit('cursor.hover', { selector: sel });
+  }
+
+  async click(sel: Selector, button: 'left' | 'right' | 'middle' = 'left'): Promise<void> {
+    if (!this.page) throw new Error('Driver not initialized');
+
+    const locator = resolveSelector(this.page, sel);
+    const box = await locator.boundingBox();
+
+    if (box) {
+      const centerX = Math.round(box.x + box.width / 2);
+      const centerY = Math.round(box.y + box.height / 2);
+
+      this.emit('cursor.move', {
+        to: [centerX, centerY],
+        ease: 'inOutCubic',
+      });
+
+      // Trigger ripple effect via overlay
+      if (this.overlay?.isInjected()) {
+        await this.overlay.createRipple(centerX, centerY);
+      }
+    }
+
+    await locator.click({ button });
+
+    this.emit('cursor.click', {
+      button,
+      target: { selector: sel },
+    });
+  }
+
+  async fill(sel: Selector, text: string, mask?: boolean): Promise<void> {
+    if (!this.page) throw new Error('Driver not initialized');
+
+    const locator = resolveSelector(this.page, sel);
+    await locator.fill(text);
+
+    this.emit('input.fill', {
+      selector: sel,
+      text: mask ? '•'.repeat(text.length) : text,
+      masked: mask ?? false,
+    });
+  }
+
+  async press(key: string): Promise<void> {
+    if (!this.page) throw new Error('Driver not initialized');
+
+    await this.page.keyboard.press(key);
+    this.emit('key.press', { key });
+  }
+
+  async scroll(
+    to: 'top' | 'bottom' | 'center' | { x: number; y: number },
+    durationMs?: number,
+  ): Promise<void> {
+    if (!this.page) throw new Error('Driver not initialized');
+
+    let targetY: number;
+
+    if (typeof to === 'object') {
+      targetY = to.y;
+    } else {
+      const viewportHeight = this.meta?.viewport.h ?? 900;
+      const scrollHeight = await this.page.evaluate('document.body.scrollHeight');
+
+      switch (to) {
+        case 'top':
+          targetY = 0;
+          break;
+        case 'bottom':
+          targetY = (scrollHeight as number) - viewportHeight;
+          break;
+        case 'center':
+          targetY = ((scrollHeight as number) - viewportHeight) / 2;
+          break;
+      }
+    }
+
+    this.emit('scroll.start', { to, targetY });
+
+    // Smooth scroll with duration using browser's smooth scroll behavior
+    const duration = durationMs ?? 500;
+    await this.page.evaluate(
+      `(async () => {
+        const targetY = ${targetY};
+        const duration = ${duration};
+        const startY = window.scrollY;
+        const distance = targetY - startY;
+        const startTime = performance.now();
+
+        return new Promise((resolve) => {
+          function step(currentTime) {
+            const elapsed = currentTime - startTime;
+            const progress = Math.min(elapsed / duration, 1);
+
+            // Ease in-out cubic
+            const easeProgress =
+              progress < 0.5
+                ? 4 * progress * progress * progress
+                : 1 - Math.pow(-2 * progress + 2, 3) / 2;
+
+            window.scrollTo(0, startY + distance * easeProgress);
+
+            if (progress < 1) {
+              requestAnimationFrame(step);
+            } else {
+              resolve();
+            }
+          }
+
+          requestAnimationFrame(step);
+        });
+      })()`,
+    );
+
+    this.emit('scroll.end', { to, targetY });
+  }
+
+  async waitFor(cond: Condition, timeoutMs?: number): Promise<void> {
+    if (!this.page) throw new Error('Driver not initialized');
+
+    const timeout = timeoutMs ?? this.options.timeout!;
+
+    this.emit('wait.start', { condition: cond });
+
+    switch (cond.type) {
+      case 'visible':
+        if (cond.selector) {
+          const locator = resolveSelector(this.page, cond.selector);
+          await locator.waitFor({ state: 'visible', timeout });
+        }
+        break;
+
+      case 'text':
+        if (cond.selector && cond.text) {
+          const locator = resolveSelector(this.page, cond.selector);
+          // Wait for text to appear in the element
+          await locator.filter({ hasText: cond.text }).waitFor({ state: 'visible', timeout });
+        } else if (cond.text) {
+          await this.page.waitForSelector(`text=${cond.text}`, { timeout });
+        }
+        break;
+
+      case 'url':
+        if (cond.url) {
+          await this.page.waitForURL(cond.url, { timeout });
+        }
+        break;
+
+      case 'networkIdle':
+        await this.page.waitForLoadState('networkidle', { timeout });
+        break;
+    }
+
+    this.emit('wait.end', { condition: cond });
+  }
+
+  async pause(ms: number): Promise<void> {
+    this.emit('pause.start', { duration: ms });
+    await new Promise((resolve) => setTimeout(resolve, ms));
+    this.emit('pause.end', { duration: ms });
+  }
+
+  async screenshot(path: string): Promise<void> {
+    if (!this.page) throw new Error('Driver not initialized');
+    await this.page.screenshot({ path, fullPage: false });
+  }
+
+  async teardown(): Promise<void> {
+    const duration = this.getTimestamp();
+    this.emit('run.end', { data: { durationMs: duration } });
+
+    if (this.context) {
+      await this.context.close();
+    }
+    if (this.browser) {
+      await this.browser.close();
+    }
+
+    this.page = null;
+    this.context = null;
+    this.browser = null;
+  }
+
+  getPage(): Page | null {
+    return this.page;
+  }
+
+  getContext(): BrowserContext | null {
+    return this.context;
+  }
+
+  /**
+   * Get the path to the recorded video file.
+   * Must be called after the page has been used and before context is closed.
+   */
+  async getVideoPath(): Promise<string | undefined> {
+    if (!this.page) return undefined;
+
+    const video = this.page.video();
+    if (!video) return undefined;
+
+    try {
+      return await video.path();
+    } catch {
+      return undefined;
+    }
+  }
+
+  /**
+   * Save the video to a specific path.
+   * Useful for renaming the auto-generated video file.
+   */
+  async saveVideoAs(targetPath: string): Promise<void> {
+    if (!this.page) throw new Error('Driver not initialized');
+
+    const video = this.page.video();
+    if (!video) throw new Error('No video recording available');
+
+    await video.saveAs(targetPath);
+  }
+
+  /**
+   * Get the cursor overlay instance.
+   */
+  getOverlay(): CursorOverlay | null {
+    return this.overlay;
+  }
+
+  /**
+   * Create a beat marker effect at the specified coordinates.
+   * Used for camera sync points during recording.
+   */
+  async createBeat(x: number, y: number): Promise<void> {
+    if (this.overlay?.isInjected()) {
+      await this.overlay.createBeat(x, y);
+      this.emit('cursor.beat', { to: [x, y] });
+    }
+  }
+
+  /**
+   * Highlight an element with the focus ring.
+   */
+  async highlightElement(sel: Selector): Promise<void> {
+    if (!this.page || !this.overlay?.isInjected()) return;
+
+    const locator = resolveSelector(this.page, sel);
+    const box = await locator.boundingBox();
+
+    if (box) {
+      // Use CSS selector if available, otherwise use a generated selector
+      const cssSelector = sel.by === 'css' ? sel.value : undefined;
+      if (cssSelector) {
+        await this.overlay.highlightElement(cssSelector);
+      }
+    }
+  }
+
+  /**
+   * Clear any element highlight.
+   */
+  async clearHighlight(): Promise<void> {
+    if (this.overlay?.isInjected()) {
+      await this.overlay.clearHighlight();
+    }
+  }
+}

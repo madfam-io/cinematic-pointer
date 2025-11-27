@@ -11,7 +11,7 @@
   },
   "steps": [
     {
-      "comment": "Navigate to homepage",
+      "comment": "Wait for page to load",
       "action": "waitFor",
       "locator": {
         "text": "Example Domain"
@@ -25,17 +25,34 @@
       "durationMs": 1200
     },
     {
+      "comment": "Hover over the More Information link",
+      "action": "hover",
+      "locator": {
+        "text": "More information..."
+      }
+    },
+    {
       "comment": "Highlight main content",
       "action": "cameraMark",
-      "zoom": 1.2,
+      "cinema": {
+        "zoom": 1.2
+      },
       "target": {
         "text": "Example Domain"
       },
       "durationMs": 900
     },
     {
+      "comment": "Click the link",
+      "action": "click",
+      "locator": {
+        "text": "More information..."
+      }
+    },
+    {
+      "comment": "Final pause",
       "action": "pause",
-      "ms": 1000
+      "durationMs": 1000
     }
   ],
   "output": {

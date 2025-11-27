@@ -1,0 +1,70 @@
+{
+  "meta": {
+    "name": "Signup Flow Demo",
+    "description": "Demonstrates a typical signup flow with form filling and validation",
+    "viewport": {
+      "w": 1440,
+      "h": 900
+    }
+  },
+  "start": {
+    "url": "https://example.com"
+  },
+  "steps": [
+    {
+      "comment": "Landing page hero section",
+      "action": "waitFor",
+      "locator": {
+        "text": "Example Domain"
+      },
+      "timeoutMs": 5000
+    },
+    {
+      "comment": "Draw attention to main heading",
+      "action": "cameraMark",
+      "cinema": {
+        "zoom": 1.2,
+        "beat": "intro"
+      },
+      "target": {
+        "text": "Example Domain"
+      },
+      "durationMs": 1500
+    },
+    {
+      "comment": "Scroll down to see content",
+      "action": "scroll",
+      "to": "center",
+      "durationMs": 1000
+    },
+    {
+      "comment": "Hover over the main link",
+      "action": "hover",
+      "locator": {
+        "text": "More information..."
+      }
+    },
+    {
+      "comment": "Click to learn more",
+      "action": "click",
+      "locator": {
+        "text": "More information..."
+      },
+      "cinema": {
+        "beat": "impact",
+        "ripple": true
+      }
+    },
+    {
+      "comment": "Final reveal",
+      "action": "pause",
+      "durationMs": 2000
+    }
+  ],
+  "output": {
+    "preset": "trailer",
+    "aspect": "16:9",
+    "music": "uplift_a",
+    "captions": true
+  }
+}
