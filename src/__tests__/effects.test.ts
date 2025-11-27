@@ -369,6 +369,17 @@ describe('Effects Module', () => {
         });
         expect(result.split(',').length).toBeGreaterThan(1);
       });
+
+      it('should generate chain with ducking', () => {
+        const result = generateAudioProcessingChain({
+          ducking: {
+            duckPoints: [{ time: 5, duration: 3, level: 0.3 }],
+          },
+        });
+        expect(result).toContain('volume=');
+        expect(result).toContain('if(between(t,');
+        expect(result).toContain('0.3');
+      });
     });
   });
 });
