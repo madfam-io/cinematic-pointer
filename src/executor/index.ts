@@ -13,6 +13,7 @@ export interface ExecutorOptions {
   speed?: number;
   outputDir?: string;
   enableRecording?: boolean;
+  enableOverlay?: boolean;
 }
 
 export interface ExecutionResult {
@@ -51,6 +52,7 @@ export class JourneyExecutor {
       speed: options.speed ?? 1,
       outputDir: options.outputDir ?? 'artifacts',
       enableRecording: options.enableRecording ?? true,
+      enableOverlay: options.enableOverlay ?? true, // Enable by default for cinematic effect
     };
   }
 
@@ -79,7 +81,7 @@ export class JourneyExecutor {
     };
     await this.emitter.init(meta);
 
-    // Initialize driver with recording options
+    // Initialize driver with recording and overlay options
     this.driver = new PlaywrightWebDriver({
       browserType: this.options.browserType,
       headless: this.options.headless,
@@ -90,6 +92,11 @@ export class JourneyExecutor {
         ? {
             enabled: true,
             outputDir: this.options.outputDir,
+          }
+        : undefined,
+      overlay: this.options.enableOverlay
+        ? {
+            enabled: true,
           }
         : undefined,
     });
@@ -234,17 +241,26 @@ export class JourneyExecutor {
         }
         break;
 
-      case 'cameraMark':
-        // Camera marks are purely for post-production
-        // Emit event but don't perform browser action
+      case 'cameraMark': {
+        // Camera marks emit events for post-production and optionally show visual beat
+        const region = step.target ? await this.getTargetRegion(step.target) : null;
+
         this.emitter?.emit({
           ts: Date.now(),
           t: 'camera.mark',
           zoom: step.cinema?.zoom ?? 1,
-          focus: step.target ? { region: await this.getTargetRegion(step.target) } : undefined,
+          focus: region ? { region } : undefined,
           data: { durationMs: step.durationMs },
         });
+
+        // Create visual beat marker at target center if overlay is enabled
+        if (region && this.options.enableOverlay) {
+          const centerX = region[0] + region[2] / 2;
+          const centerY = region[1] + region[3] / 2;
+          await this.driver.createBeat(centerX, centerY);
+        }
         break;
+      }
 
       case 'pause':
         if (step.durationMs) {

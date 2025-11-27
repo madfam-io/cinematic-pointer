@@ -1,5 +1,6 @@
 import { chromium, firefox, webkit, Browser, BrowserContext, Page } from 'playwright';
 
+import { CursorOverlay, CursorOverlayOptions } from '../overlay';
 import { Driver, Meta, Selector, Point, Region, Condition } from '../types';
 import { resolveSelector } from '../utils/selector';
 import { UesEmitter } from '../utils/ues-emitter';
@@ -17,6 +18,10 @@ export interface PlaywrightDriverOptions {
     outputDir: string;
     videoSize?: { width: number; height: number };
   };
+  overlay?: {
+    enabled: boolean;
+    options?: CursorOverlayOptions;
+  };
 }
 
 export class PlaywrightWebDriver implements Driver {
@@ -27,6 +32,7 @@ export class PlaywrightWebDriver implements Driver {
   private options: PlaywrightDriverOptions;
   private emitter: UesEmitter | null = null;
   private startTime: number = 0;
+  private overlay: CursorOverlay | null = null;
 
   constructor(options: PlaywrightDriverOptions = {}) {
     this.options = {
@@ -120,7 +126,27 @@ export class PlaywrightWebDriver implements Driver {
 
     this.emit('navigation.start', { data: { url } });
     await this.page.goto(url, { waitUntil: 'domcontentloaded' });
+
+    // Inject cursor overlay if enabled
+    if (this.options.overlay?.enabled) {
+      await this.injectOverlay();
+    }
+
     this.emit('navigation.end', { data: { url } });
+  }
+
+  /**
+   * Inject the cursor overlay into the current page.
+   */
+  private async injectOverlay(): Promise<void> {
+    if (!this.page) return;
+
+    this.overlay = new CursorOverlay(this.page, this.options.overlay?.options);
+    await this.overlay.inject();
+
+    this.emit('overlay.injected', {
+      data: { enabled: true },
+    });
   }
 
   async resolveTarget(sel: Selector): Promise<Point | Region> {
@@ -165,10 +191,18 @@ export class PlaywrightWebDriver implements Driver {
     const box = await locator.boundingBox();
 
     if (box) {
+      const centerX = Math.round(box.x + box.width / 2);
+      const centerY = Math.round(box.y + box.height / 2);
+
       this.emit('cursor.move', {
-        to: [Math.round(box.x + box.width / 2), Math.round(box.y + box.height / 2)],
+        to: [centerX, centerY],
         ease: 'inOutCubic',
       });
+
+      // Trigger ripple effect via overlay
+      if (this.overlay?.isInjected()) {
+        await this.overlay.createRipple(centerX, centerY);
+      }
     }
 
     await locator.click({ button });
@@ -368,5 +402,50 @@ export class PlaywrightWebDriver implements Driver {
     if (!video) throw new Error('No video recording available');
 
     await video.saveAs(targetPath);
+  }
+
+  /**
+   * Get the cursor overlay instance.
+   */
+  getOverlay(): CursorOverlay | null {
+    return this.overlay;
+  }
+
+  /**
+   * Create a beat marker effect at the specified coordinates.
+   * Used for camera sync points during recording.
+   */
+  async createBeat(x: number, y: number): Promise<void> {
+    if (this.overlay?.isInjected()) {
+      await this.overlay.createBeat(x, y);
+      this.emit('cursor.beat', { to: [x, y] });
+    }
+  }
+
+  /**
+   * Highlight an element with the focus ring.
+   */
+  async highlightElement(sel: Selector): Promise<void> {
+    if (!this.page || !this.overlay?.isInjected()) return;
+
+    const locator = resolveSelector(this.page, sel);
+    const box = await locator.boundingBox();
+
+    if (box) {
+      // Use CSS selector if available, otherwise use a generated selector
+      const cssSelector = sel.by === 'css' ? sel.value : undefined;
+      if (cssSelector) {
+        await this.overlay.highlightElement(cssSelector);
+      }
+    }
+  }
+
+  /**
+   * Clear any element highlight.
+   */
+  async clearHighlight(): Promise<void> {
+    if (this.overlay?.isInjected()) {
+      await this.overlay.clearHighlight();
+    }
   }
 }
