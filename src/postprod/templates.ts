@@ -270,24 +270,5 @@ export function getQualityPreset(quality: 'draft' | 'standard' | 'high'): Qualit
   }
 }
 
-/**
- * Aspect ratio configurations.
- */
-export interface AspectConfig {
-  name: string;
-  width: number;
-  height: number;
-  ratio: number;
-}
-
-export const aspectRatios: Record<string, AspectConfig> = {
-  '16:9': { name: 'Landscape', width: 1920, height: 1080, ratio: 16 / 9 },
-  '1:1': { name: 'Square', width: 1080, height: 1080, ratio: 1 },
-  '9:16': { name: 'Portrait', width: 1080, height: 1920, ratio: 9 / 16 },
-  '4:3': { name: 'Classic', width: 1440, height: 1080, ratio: 4 / 3 },
-  '21:9': { name: 'Ultrawide', width: 2560, height: 1080, ratio: 21 / 9 },
-};
-
-export function getAspectConfig(aspect: string): AspectConfig {
-  return aspectRatios[aspect] ?? aspectRatios['16:9'];
-}
+// Re-export aspect ratio utilities from centralized location
+export { type AspectConfig, aspectRatios, getAspectConfig } from '../utils/aspect';

@@ -220,6 +220,7 @@ Square format demo optimized for Instagram feed posts.
 #### Navigation & Waiting
 
 ```json
+{ "action": "navigate", "to": "https://example.com/page", "waitFor": { "text": "Loaded" } }
 { "action": "waitFor", "locator": { "text": "Welcome" }, "timeoutMs": 5000 }
 { "action": "pause", "durationMs": 2000 }
 ```

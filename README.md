@@ -156,6 +156,7 @@ Options:
 | `waitFor`    | Wait for condition   | `locator`, `timeoutMs`         |
 | `cameraMark` | Mark camera position | `zoom`, `target`, `durationMs` |
 | `pause`      | Wait without action  | `durationMs`                   |
+| `navigate`   | Navigate to URL      | `to` (URL), `waitFor`          |
 
 ### Locator Strategy
 
