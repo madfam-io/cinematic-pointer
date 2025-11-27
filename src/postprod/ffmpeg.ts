@@ -368,7 +368,10 @@ export async function probe(filePath: string): Promise<ProbeResult> {
 
       try {
         const data = JSON.parse(output);
-        const videoStream = data.streams?.find((s: any) => s.codec_type === 'video');
+        const videoStream = data.streams?.find(
+          (s: { codec_type: string; width?: number; height?: number; r_frame_rate?: string }) =>
+            s.codec_type === 'video',
+        );
         const duration = parseFloat(data.format?.duration || '0');
         const width = videoStream?.width || 1920;
         const height = videoStream?.height || 1080;

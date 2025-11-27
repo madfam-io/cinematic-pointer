@@ -330,7 +330,7 @@ function extractZoomKeyframes(
       keyframes.push({ time, zoom, x, y, ease: 'easeInOut' });
 
       // Return to default after duration
-      const duration = (event.data?.durationMs ?? 2000) / 1000;
+      const duration = (Number(event.data?.durationMs) || 2000) / 1000;
       keyframes.push({
         time: time + duration,
         zoom: template.defaultZoom,

@@ -181,12 +181,19 @@ export function generateSimpleBlurFilter(
 
 /**
  * Extract blur regions from UES events.
+ *
+ * @param events - UES events from recording
+ * @param config - Blur map configuration
+ * @param videoWidth - Video width in pixels
+ * @param videoHeight - Video height in pixels
+ * @param fps - Video frame rate (defaults to 30)
  */
 export function extractBlurRegionsFromEvents(
   events: UesEvent[],
   config: BlurMapConfig,
   videoWidth: number,
   videoHeight: number,
+  fps: number = 30,
 ): ResolvedRegion[] {
   const resolved: ResolvedRegion[] = [];
 
@@ -222,7 +229,7 @@ export function extractBlurRegionsFromEvents(
 
         resolved.push({
           id: `input-${event.ts}`,
-          startFrame: Math.floor((event.ts / 1000) * 30), // Assuming 30fps, will be adjusted
+          startFrame: Math.floor((event.ts / 1000) * fps),
           x: Math.max(0, x - padding),
           y: Math.max(0, y - padding),
           width: 200 + padding * 2, // Approximate input width

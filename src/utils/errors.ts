@@ -211,7 +211,7 @@ export function getErrorMessage(error: unknown): string {
  */
 export function isErrorType<T extends CinematicPointerError>(
   error: unknown,
-  ErrorClass: new (...args: any[]) => T,
+  ErrorClass: new (...args: unknown[]) => T,
 ): error is T {
   return error instanceof ErrorClass;
 }

@@ -6,9 +6,7 @@ module.exports = {
   testMatch: ['**/__tests__/**/*.test.ts', '**/?(*.)+(spec|test).ts'],
   transform: {
     '^.+\\.ts$': ['ts-jest', {
-      tsconfig: {
-        moduleResolution: 'node',
-      },
+      isolatedModules: true,
     }],
   },
   collectCoverageFrom: [
