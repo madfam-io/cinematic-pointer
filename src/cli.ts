@@ -1,12 +1,11 @@
 #!/usr/bin/env node
 import { Command } from 'commander';
-import chalk from 'chalk';
-import ora from 'ora';
 
-import { runJourney } from './commands/run';
+import { version } from '../package.json';
+
 import { cutVideo } from './commands/cut';
 import { reframeVideo } from './commands/reframe';
-import { version } from '../package.json';
+import { runJourney } from './commands/run';
 
 const program = new Command();
 

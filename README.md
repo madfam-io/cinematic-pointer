@@ -4,21 +4,21 @@
 
 **Cinematic Pointer** is an automated system that replays preplanned user journeys (initially on the web) and produces polished, cinematic videos where the cursor is the protagonist. It is designed for product demos, instructional videos, and storytelling at scale.
 
-* **MVP Scope:** Web automation using Playwright.
-* **Future Scope:** Extendable to desktop OS (macOS, Windows, Linux).
-* **Core Idea:** Write a script once → Replay → Auto-record → Auto-edit into cinematic exports (16:9, 1:1, 9:16).
+- **MVP Scope:** Web automation using Playwright.
+- **Future Scope:** Extendable to desktop OS (macOS, Windows, Linux).
+- **Core Idea:** Write a script once → Replay → Auto-record → Auto-edit into cinematic exports (16:9, 1:1, 9:16).
 
 ---
 
 ## Features
 
-* **Declarative Journey DSL** — author flows in JSON.
-* **Universal Event Schema (UES)** — OS-agnostic event logs.
-* **Web Runner (Playwright)** — robust selectors, assertions, retries.
-* **Cursor Overlay** — trails, ripples, focus ring, camera beats.
-* **Auto-Editing Pipeline** — ffmpeg-powered zooms, pans, speed ramps, captions, music.
-* **Multi-Aspect Exports** — landscape, square, vertical (social ready).
-* **Privacy by Design** — masking, blur maps, synthetic data.
+- **Declarative Journey DSL** — author flows in JSON.
+- **Universal Event Schema (UES)** — OS-agnostic event logs.
+- **Web Runner (Playwright)** — robust selectors, assertions, retries.
+- **Cursor Overlay** — trails, ripples, focus ring, camera beats.
+- **Auto-Editing Pipeline** — ffmpeg-powered zooms, pans, speed ramps, captions, music.
+- **Multi-Aspect Exports** — landscape, square, vertical (social ready).
+- **Privacy by Design** — masking, blur maps, synthetic data.
 
 ---
 
@@ -32,13 +32,13 @@ npm install
 
 Ensure dependencies are installed:
 
-* Node.js ≥ 20
-* Playwright stable
-* ffmpeg ≥ 6.0
+- Node.js ≥ 20
+- Playwright stable
+- ffmpeg ≥ 6.0
 
 Optional:
 
-* OBS with WebSocket plugin (advanced recording)
+- OBS with WebSocket plugin (advanced recording)
 
 ---
 
@@ -54,8 +54,17 @@ Create a `.cinematicpointer.json` file:
   "start": { "url": "https://example.com" },
   "steps": [
     { "comment": "Hero scroll", "action": "scroll", "to": "center", "durationMs": 1200 },
-    { "action": "click", "locator": { "role": "button", "name": "Get Started" }, "cinema": { "beat": "impact", "ripple": true } },
-    { "action": "fill", "locator": { "placeholder": "Email" }, "text": "demo+user@madfam.io", "mask": true },
+    {
+      "action": "click",
+      "locator": { "role": "button", "name": "Get Started" },
+      "cinema": { "beat": "impact", "ripple": true }
+    },
+    {
+      "action": "fill",
+      "locator": { "placeholder": "Email" },
+      "text": "demo+user@madfam.io",
+      "mask": true
+    },
     { "action": "press", "key": "Enter" },
     { "action": "waitFor", "locator": { "text": "Welcome" } },
     { "action": "cameraMark", "zoom": 1.3, "target": { "text": "Welcome" }, "durationMs": 900 }
@@ -89,20 +98,20 @@ cinematic-pointer reframe exports/signup_trailer_1080p.mp4 --aspect=9:16 --smart
 
 ## CLI Flags
 
-* `--headless` / `--headed` — run in background or visible browser.
-* `--timeout` — step timeout.
-* `--retries` — retry failed steps.
-* `--network-idle` — wait for network idle before continuing.
-* `--speed` — slow down or speed up execution.
+- `--headless` / `--headed` — run in background or visible browser.
+- `--timeout` — step timeout.
+- `--retries` — retry failed steps.
+- `--network-idle` — wait for network idle before continuing.
+- `--speed` — slow down or speed up execution.
 
 ---
 
 ## Roadmap
 
-* **Phase 1 (MVP):** Web automation, Playwright runner, ffmpeg auto-edit, branded exports.
-* **Phase 2:** Desktop record-only mode (whole OS capture with overlays).
-* **Phase 3:** Desktop automation drivers (macOS/Windows/Linux).
-* **Phase 4:** Visual recorder to capture human walkthroughs into journeys.
+- **Phase 1 (MVP):** Web automation, Playwright runner, ffmpeg auto-edit, branded exports.
+- **Phase 2:** Desktop record-only mode (whole OS capture with overlays).
+- **Phase 3:** Desktop automation drivers (macOS/Windows/Linux).
+- **Phase 4:** Visual recorder to capture human walkthroughs into journeys.
 
 ---
 

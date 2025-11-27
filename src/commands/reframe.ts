@@ -1,6 +1,7 @@
+import path from 'path';
+
 import chalk from 'chalk';
 import ora from 'ora';
-import path from 'path';
 
 interface ReframeOptions {
   aspect: string;

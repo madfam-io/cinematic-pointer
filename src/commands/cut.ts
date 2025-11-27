@@ -1,6 +1,5 @@
 import chalk from 'chalk';
 import ora from 'ora';
-import path from 'path';
 
 interface CutOptions {
   template: string;

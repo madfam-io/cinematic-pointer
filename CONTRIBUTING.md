@@ -5,6 +5,7 @@ Thank you for your interest in contributing to Cinematic Pointer! This document 
 ## Development Setup
 
 1. Clone the repository:
+
    ```bash
    git clone https://github.com/madfam/cinematic-pointer.git
    cd cinematic-pointer
@@ -27,11 +28,13 @@ Thank you for your interest in contributing to Cinematic Pointer! This document 
 ### Making Changes
 
 1. Create a feature branch:
+
    ```bash
    git checkout -b feature/your-feature
    ```
 
 2. Make your changes and test:
+
    ```bash
    npm test
    npm run lint
@@ -61,17 +64,20 @@ We use [Conventional Commits](https://www.conventionalcommits.org/):
 ### Testing
 
 Run all tests:
+
 ```bash
 npm test
 npm run test:e2e
 ```
 
 Run tests in watch mode:
+
 ```bash
 npm run test:watch
 ```
 
 Check coverage:
+
 ```bash
 npm run test:coverage
 ```

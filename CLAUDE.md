@@ -25,11 +25,13 @@ Cinematic Pointer is an automated system that replays preplanned user journeys o
 ## Development Setup
 
 Quick setup:
+
 ```bash
 ./scripts/setup.sh
 ```
 
 Or manually:
+
 ```bash
 npm install
 npx playwright install
@@ -38,6 +40,7 @@ npm run build
 ```
 
 Ensure system dependencies:
+
 - Node.js ≥ 20 (use `.nvmrc`)
 - ffmpeg ≥ 6.0
 - Optional: OBS with WebSocket plugin
