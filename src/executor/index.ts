@@ -79,28 +79,25 @@ export class JourneyExecutor {
     };
     await this.emitter.init(meta);
 
-    // Initialize driver
+    // Initialize driver with recording options
     this.driver = new PlaywrightWebDriver({
       browserType: this.options.browserType,
       headless: this.options.headless,
       timeout: this.options.timeout,
       speed: this.options.speed,
       emitter: this.emitter,
+      recording: this.options.enableRecording
+        ? {
+            enabled: true,
+            outputDir: this.options.outputDir,
+          }
+        : undefined,
     });
 
     let videoPath: string | undefined;
 
     try {
       await this.driver.init(meta);
-
-      // Start recording if enabled
-      if (this.options.enableRecording) {
-        const context = this.driver.getContext();
-        if (context) {
-          // Playwright video recording is configured at context creation
-          // For now, we'll handle this in a future milestone with proper Recorder interface
-        }
-      }
 
       // Navigate to start URL
       await this.driver.goto(journey.start.url);
@@ -149,6 +146,15 @@ export class JourneyExecutor {
         }
       }
     } finally {
+      // Get video path before teardown (must be done while context is still open)
+      if (this.options.enableRecording && this.driver) {
+        try {
+          videoPath = await this.driver.getVideoPath();
+        } catch {
+          // Video may not be available
+        }
+      }
+
       // Cleanup
       await this.driver?.teardown();
       await this.emitter?.close();

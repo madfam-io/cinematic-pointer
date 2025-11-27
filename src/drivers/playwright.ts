@@ -12,6 +12,11 @@ export interface PlaywrightDriverOptions {
   timeout?: number;
   speed?: number;
   emitter?: UesEmitter;
+  recording?: {
+    enabled: boolean;
+    outputDir: string;
+    videoSize?: { width: number; height: number };
+  };
 }
 
 export class PlaywrightWebDriver implements Driver {
@@ -63,14 +68,39 @@ export class PlaywrightWebDriver implements Driver {
       slowMo: this.options.speed !== 1 ? Math.round(100 / this.options.speed!) : undefined,
     });
 
-    this.context = await this.browser.newContext({
+    // Build context options with optional video recording
+    const contextOptions: Parameters<Browser['newContext']>[0] = {
       viewport: {
         width: meta.viewport.w,
         height: meta.viewport.h,
       },
       deviceScaleFactor: meta.viewport.deviceScaleFactor ?? 1,
-    });
+    };
 
+    // Add video recording if enabled
+    if (this.options.recording?.enabled) {
+      const { mkdir } = await import('fs/promises');
+      const path = await import('path');
+      const videoDir = path.join(this.options.recording.outputDir, 'raw');
+      await mkdir(videoDir, { recursive: true });
+
+      contextOptions.recordVideo = {
+        dir: videoDir,
+        size: this.options.recording.videoSize ?? {
+          width: Math.min(meta.viewport.w, 1920),
+          height: Math.min(meta.viewport.h, 1080),
+        },
+      };
+
+      this.emit('recording.config', {
+        data: {
+          videoDir,
+          videoSize: contextOptions.recordVideo.size,
+        },
+      });
+    }
+
+    this.context = await this.browser.newContext(contextOptions);
     this.page = await this.context.newPage();
     this.page.setDefaultTimeout(this.options.timeout!);
 
@@ -80,6 +110,7 @@ export class PlaywrightWebDriver implements Driver {
           ...meta,
           canvas: meta.canvas ?? 'web',
         },
+        recording: this.options.recording?.enabled ?? false,
       },
     });
   }
@@ -307,5 +338,35 @@ export class PlaywrightWebDriver implements Driver {
 
   getContext(): BrowserContext | null {
     return this.context;
+  }
+
+  /**
+   * Get the path to the recorded video file.
+   * Must be called after the page has been used and before context is closed.
+   */
+  async getVideoPath(): Promise<string | undefined> {
+    if (!this.page) return undefined;
+
+    const video = this.page.video();
+    if (!video) return undefined;
+
+    try {
+      return await video.path();
+    } catch {
+      return undefined;
+    }
+  }
+
+  /**
+   * Save the video to a specific path.
+   * Useful for renaming the auto-generated video file.
+   */
+  async saveVideoAs(targetPath: string): Promise<void> {
+    if (!this.page) throw new Error('Driver not initialized');
+
+    const video = this.page.video();
+    if (!video) throw new Error('No video recording available');
+
+    await video.saveAs(targetPath);
   }
 }
